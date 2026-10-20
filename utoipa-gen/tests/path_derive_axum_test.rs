@@ -338,6 +338,54 @@ fn path_param_single_arg_non_primitive_type() {
 }
 
 #[test]
+fn derive_path_with_into_params_resolved_from_fn_args_axum() {
+    use serde_json::json;
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Filter {
+        age: i32,
+    }
+
+    /// See https://github.com/juhaku/utoipa/issues/677
+    #[utoipa::path(get, path = "/items", params(("id" = u32, Query)))]
+    #[allow(unused)]
+    async fn get_items(id: Option<Query<u32>>) {}
+
+    #[utoipa::path(get, path = "/filtered")]
+    #[allow(unused)]
+    async fn get_filtered(filter: Option<Query<Filter>>) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_items, get_filtered))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    let parameters = doc.pointer("/paths/~1items/get/parameters");
+    assert_eq!(
+        parameters,
+        Some(&json!([{
+            "in": "query",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32", "minimum": 0 }
+        }]))
+    );
+
+    let parameters = doc.pointer("/paths/~1filtered/get/parameters");
+    assert_eq!(
+        parameters,
+        Some(&json!([{
+            "in": "query",
+            "name": "age",
+            "required": true,
+            "schema": { "type": "integer", "format": "int32" }
+        }]))
+    );
+}
+
+#[test]
 fn path_param_single_arg_non_primitive_type_into_params() {
     #[derive(utoipa::ToSchema, utoipa::IntoParams)]
     #[into_params(names("id"))]

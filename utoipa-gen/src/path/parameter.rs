@@ -71,7 +71,8 @@ impl<'p> Parameter<'p> {
                 }
             }
             (Self::IntoParamsIdent(into_params), Parameter::IntoParamsIdent(other)) => {
-                *into_params = other;
+                // keep the explicitly declared parameter strict, only take the `parameter_in`
+                into_params.parameter_in_fn = other.parameter_in_fn;
             }
             _ => (),
         }
@@ -84,6 +85,7 @@ impl Parse for Parameter<'_> {
             Ok(Self::IntoParamsIdent(IntoParamsIdentParameter {
                 path: Cow::Owned(input.parse::<TypePath>()?.path),
                 parameter_in_fn: None,
+                resolved_from_fn_arg: false,
             }))
         } else {
             Ok(Self::Value(input.parse()?))
@@ -100,6 +102,7 @@ impl ToTokensDiagnostics for Parameter<'_> {
             Parameter::IntoParamsIdent(IntoParamsIdentParameter {
                 path,
                 parameter_in_fn,
+                resolved_from_fn_arg,
             }) => {
                 let last_ident = &path.segments.last().unwrap().ident;
 
@@ -107,10 +110,23 @@ impl ToTokensDiagnostics for Parameter<'_> {
                 let parameter_in_provider = parameter_in_fn
                     .as_ref()
                     .unwrap_or(default_parameter_in_provider);
+
+                let into_params = if *resolved_from_fn_arg {
+                    quote_spanned! {last_ident.span()=>
+                        {
+                            #[allow(unused_imports)]
+                            use utoipa::__dev::{FromIntoParams as _, NoParams as _};
+                            let into_params_of = &utoipa::__dev::IntoParamsOf::<#path>(::core::marker::PhantomData);
+                            into_params_of.parameters(#parameter_in_provider)
+                        }
+                    }
+                } else {
+                    quote_spanned! {last_ident.span()=>
+                        <#path as utoipa::IntoParams>::into_params(#parameter_in_provider)
+                    }
+                };
                 tokens.extend(quote_spanned! {last_ident.span()=>
-                    .parameters(
-                        Some(<#path as utoipa::IntoParams>::into_params(#parameter_in_provider))
-                    )
+                    .parameters(Some(#into_params))
                 })
             }
         }
@@ -158,6 +174,7 @@ impl<'a> From<crate::ext::IntoParamsType<'a>> for Parameter<'a> {
         Self::IntoParamsIdent(IntoParamsIdentParameter {
             path: value.type_path.expect("IntoParams type must have a path"),
             parameter_in_fn: Some(value.parameter_in_provider),
+            resolved_from_fn_arg: true,
         })
     }
 }
@@ -424,6 +441,10 @@ pub struct IntoParamsIdentParameter<'i> {
     pub path: Cow<'i, syn::Path>,
     /// quote!{ ... } of function which should implement `parameter_in_provider` for [`utoipa::IntoParams::into_param`]
     parameter_in_fn: Option<TokenStream>,
+    /// Resolved from a handler fn argument such as `Query<T>`. Such a type documents no
+    /// parameters when it does not implement `IntoParams`, while a type declared in `params(...)`
+    /// must implement it.
+    resolved_from_fn_arg: bool,
 }
 
 // Compare paths loosely only by segment idents ignoring possible generics

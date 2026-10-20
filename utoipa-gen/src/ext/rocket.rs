@@ -107,7 +107,7 @@ fn with_parameter_in(
             }
         });
 
-        Some(arg.ty.path).zip(parameter_in)
+        Some(fn_arg::without_option(arg.ty).path).zip(parameter_in)
     }
 }
 

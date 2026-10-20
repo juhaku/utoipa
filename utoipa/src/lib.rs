@@ -1284,6 +1284,47 @@ pub mod __dev {
         fn tags() -> Vec<&'t str>;
     }
 
+    /// Parameters of a handler argument type resolved by the framework extras.
+    ///
+    /// Uses autoref based specialization so that a type without `IntoParams`, such as a newtype
+    /// in `Path<UserId>`, documents no parameters instead of failing to compile. The generated code
+    /// calls `parameters(...)` on a `&IntoParamsOf<T>` with both traits in scope:
+    /// [`FromIntoParams`] matches the receiver directly when `T: IntoParams`, otherwise method
+    /// resolution adds a reference and [`NoParams`] matches.
+    pub struct IntoParamsOf<T: ?Sized>(pub std::marker::PhantomData<T>);
+
+    pub trait FromIntoParams {
+        fn parameters(
+            &self,
+            parameter_in_provider: impl Fn() -> Option<crate::openapi::path::ParameterIn>,
+        ) -> Vec<crate::openapi::path::Parameter>;
+    }
+
+    impl<T: crate::IntoParams + ?Sized> FromIntoParams for IntoParamsOf<T> {
+        fn parameters(
+            &self,
+            parameter_in_provider: impl Fn() -> Option<crate::openapi::path::ParameterIn>,
+        ) -> Vec<crate::openapi::path::Parameter> {
+            T::into_params(parameter_in_provider)
+        }
+    }
+
+    pub trait NoParams {
+        fn parameters(
+            &self,
+            parameter_in_provider: impl Fn() -> Option<crate::openapi::path::ParameterIn>,
+        ) -> Vec<crate::openapi::path::Parameter>;
+    }
+
+    impl<T: ?Sized> NoParams for &IntoParamsOf<T> {
+        fn parameters(
+            &self,
+            _: impl Fn() -> Option<crate::openapi::path::ParameterIn>,
+        ) -> Vec<crate::openapi::path::Parameter> {
+            Vec::new()
+        }
+    }
+
     impl<T: PathConfig> utoipa::Path for T {
         fn path() -> String {
             <Self as PathConfig>::path()

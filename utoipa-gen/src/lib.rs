@@ -1518,7 +1518,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 ///    `#[route(...)]`.
 /// 2. Ability to parse [`std::primitive`]  or [`String`] or [`tuple`] typed `path` parameters from **actix-web** _`web::Path<...>`_.
 /// 3. Ability to parse `path` and `query` parameters form **actix-web** _`web::Path<...>`_, _`web::Query<...>`_ types
-///    with [`IntoParams`][into_params] trait.
+///    with [`IntoParams`][into_params] trait. Listing the type in _`params(...)`_ is optional, and types that do
+///    not implement [`IntoParams`][into_params] are ignored.
 ///
 /// See the **actix_extras** in action in examples [todo-actix](https://github.com/juhaku/utoipa/tree/master/examples/todo-actix).
 ///
@@ -1569,6 +1570,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It is able to parse parameter types for [primitive types][primitive], [`String`], [`Vec`], [`Option`] or [`std::path::PathBuf`]
 ///    type.
 /// 2. It is able to determine `parameter_in` for [`IntoParams`][into_params] trait used for `FromForm` type of query parameters.
+///    Listing the type in _`params(...)`_ is optional, and types that do not implement [`IntoParams`][into_params]
+///    are ignored.
 ///
 /// See the **rocket_extras** in action in examples [rocket-todo](https://github.com/juhaku/utoipa/tree/master/examples/rocket-todo).
 ///
@@ -1580,7 +1583,8 @@ pub fn derive_to_schema(input: TokenStream) -> TokenStream {
 /// 1. It allows users to use tuple style path parameters e.g. _`Path((id, name)): Path<(i32, String)>`_ and resolves
 ///    parameter names and types from it.
 /// 2. It enhances [`IntoParams` derive][into_params_derive] functionality by automatically resolving _`parameter_in`_ from
-///    _`Path<...>`_ or _`Query<...>`_ handler function arguments.
+///    _`Path<...>`_ or _`Query<...>`_ handler function arguments. Listing the type in _`params(...)`_ is optional,
+///    and types that do not implement [`IntoParams`][into_params] are ignored.
 ///
 /// _**Resole path argument types from tuple style handler arguments.**_
 /// ```rust
