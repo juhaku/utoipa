@@ -3227,6 +3227,24 @@ fn derive_map_with_property_names() {
 }
 
 #[test]
+fn derive_map_with_optional_ref_value() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    struct NewString(String);
+
+    let value = api_doc! {
+        struct Map {
+            map: std::collections::BTreeMap<String, Option<NewString>>,
+            #[schema(inline)]
+            inline_map: std::collections::BTreeMap<String, Option<NewString>>,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_schema_with_ignored_field() {
     #![allow(unused)]
 
