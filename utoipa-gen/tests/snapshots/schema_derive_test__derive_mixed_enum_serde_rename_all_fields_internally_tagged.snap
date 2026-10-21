@@ -1,0 +1,50 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+assertion_line: 1394
+expression: value
+---
+{
+  "oneOf": [
+    {
+      "properties": {
+        "anotherField": {
+          "type": "string"
+        },
+        "someNumber": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "type": {
+          "enum": [
+            "One"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "someNumber",
+        "anotherField",
+        "type"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "type": {
+          "enum": [
+            "Two"
+          ],
+          "type": "string"
+        },
+        "yetAnother": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "yetAnother",
+        "type"
+      ],
+      "type": "object"
+    }
+  ]
+}
