@@ -1040,3 +1040,50 @@ fn derive_path_with_multiple_methods_skip_connect() {
         __path_multiple_methods::methods()
     )
 }
+
+#[test]
+fn derive_path_with_qualified_actix_route_macros() {
+    #[utoipa::path]
+    #[actix_web::get("/foo/{id}")]
+    #[allow(unused)]
+    async fn get_foo(id: actix_web::web::Path<i32>) -> impl Responder {
+        String::new()
+    }
+
+    #[utoipa::path]
+    #[actix_web::route("/foo", method = "PUT", method = "PATCH")]
+    #[allow(unused)]
+    async fn update_foo() -> impl Responder {
+        String::new()
+    }
+
+    use utoipa::Path;
+    assert_eq!("/foo/{id}", __path_get_foo::path());
+    assert_eq!(
+        vec![utoipa::openapi::path::HttpMethod::Get],
+        __path_get_foo::methods()
+    );
+    assert_eq!("/foo", __path_update_foo::path());
+    assert_eq!(
+        vec![
+            utoipa::openapi::path::HttpMethod::Put,
+            utoipa::openapi::path::HttpMethod::Patch
+        ],
+        __path_update_foo::methods()
+    );
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/~1foo~1{id}/get/parameters").unwrap();
+
+    common::assert_json_array_len(parameters, 1);
+    assert_value! {parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""id""#, "Parameter name"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+        "[0].schema.format" = r#""int32""#, "Parameter schema format"
+    };
+}
