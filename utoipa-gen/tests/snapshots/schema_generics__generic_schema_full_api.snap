@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
-assertion_line: 137
 expression: doc
 ---
 {
@@ -171,6 +170,18 @@ expression: doc
                 "format": "int32"
               }
             }
+          }
+        }
+      },
+      "path.MyType_i32": {
+        "type": "object",
+        "required": [
+          "t"
+        ],
+        "properties": {
+          "t": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
