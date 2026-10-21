@@ -1,0 +1,18 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "properties": {
+    "object": {
+      "example": {
+        "foo": "bar"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "object"
+  ],
+  "type": "object"
+}
