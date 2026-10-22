@@ -235,58 +235,56 @@ fn path_operation_auto_types_tuple() {
     assert_json_snapshot!(&path.pointer("/requestBody"));
 }
 
-// TODO this test is currently failing to compile
-//
-// #[test]
-// fn path_operation_request_body_bytes() {
-//     /// Test item to to return
-//     #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-//     struct Item<'s> {
-//         value: &'s str,
-//     }
-//
-//     #[derive(utoipa::IntoResponses)]
-//     #[allow(unused)]
-//     enum ItemResponse<'s> {
-//         /// Item found
-//         #[response(status = 200)]
-//         Success(Item<'s>),
-//     }
-//
-//     impl Responder for ItemResponse<'static> {
-//         type Body = BoxBody;
-//
-//         fn respond_to(self, _: &actix_web::HttpRequest) -> actix_web::HttpResponse<Self::Body> {
-//             match self {
-//                 Self::Success(item) => HttpResponse::Ok()
-//                     .content_type(ContentType::json())
-//                     .body(serde_json::to_string(&item).expect("Item must serialize to json")),
-//             }
-//         }
-//     }
-//
-//     #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-//     struct ItemBody {
-//         value: String,
-//     }
-//
-//     #[utoipa::path]
-//     #[post("/item")]
-//     #[allow(unused)]
-//     async fn post_item(item: actix_web::web::Bytes) -> ItemResponse<'static> {
-//         ItemResponse::Success(Item { value: "super" })
-//     }
-//
-//     #[derive(OpenApi)]
-//     #[openapi(paths(post_item), components(schemas(ItemBody)))]
-//     struct ApiDoc;
-//
-//     let doc = ApiDoc::openapi();
-//     let value = serde_json::to_value(&doc).unwrap();
-//     let path = value.pointer("/paths/~1item/post").unwrap();
-//
-//     assert_json_snapshot!(&path.pointer("/requestBody"));
-// }
+#[test]
+fn path_operation_request_body_bytes() {
+    /// Test item to to return
+    #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+    struct Item<'s> {
+        value: &'s str,
+    }
+
+    #[derive(utoipa::IntoResponses)]
+    #[allow(unused)]
+    enum ItemResponse<'s> {
+        /// Item found
+        #[response(status = 200)]
+        Success(Item<'s>),
+    }
+
+    impl Responder for ItemResponse<'static> {
+        type Body = BoxBody;
+
+        fn respond_to(self, _: &actix_web::HttpRequest) -> actix_web::HttpResponse<Self::Body> {
+            match self {
+                Self::Success(item) => HttpResponse::Ok()
+                    .content_type(ContentType::json())
+                    .body(serde_json::to_string(&item).expect("Item must serialize to json")),
+            }
+        }
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+    struct ItemBody {
+        value: String,
+    }
+
+    #[utoipa::path]
+    #[post("/item")]
+    #[allow(unused)]
+    async fn post_item(item: actix_web::web::Bytes) -> ItemResponse<'static> {
+        ItemResponse::Success(Item { value: "super" })
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(post_item), components(schemas(ItemBody)))]
+    struct ApiDoc;
+
+    let doc = ApiDoc::openapi();
+    let value = serde_json::to_value(&doc).unwrap();
+    let path = value.pointer("/paths/~1item/post").unwrap();
+
+    assert_json_snapshot!(&path.pointer("/requestBody"));
+}
 
 #[test]
 fn path_operation_request_body_form() {

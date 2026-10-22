@@ -437,3 +437,33 @@ fn path_derive_inline_with_tuple() {
 
     assert_json_snapshot!(value);
 }
+
+#[test]
+fn path_derive_bytes_request_body_axum() {
+    #[utoipa::path(post, path = "/bytes")]
+    #[allow(unused)]
+    async fn post_bytes(_body: axum::body::Bytes) {}
+
+    #[derive(OpenApi)]
+    #[openapi(paths(post_bytes))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let request_body = doc.pointer("/paths/~1bytes/post/requestBody");
+
+    // `Bytes` is documented the same way as a `[u8]` request body
+    assert_eq!(
+        request_body,
+        Some(&serde_json::json!({
+            "content": {
+                "application/octet-stream": {
+                    "schema": {
+                        "type": "array",
+                        "items": { "type": "integer", "format": "int32", "minimum": 0 }
+                    }
+                }
+            },
+            "required": true
+        }))
+    );
+}
