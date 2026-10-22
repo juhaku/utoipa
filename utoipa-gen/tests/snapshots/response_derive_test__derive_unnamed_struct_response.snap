@@ -4,6 +4,7 @@ assertion_line: 25
 expression: v
 ---
 {
+  "description": "",
   "content": {
     "application/json": {
       "schema": {

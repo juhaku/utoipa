@@ -8,6 +8,7 @@ to look into changes introduced to **`utoipa-gen`**.
 ### Fixed
 
 * Fix unsigned integer known format serialization (https://github.com/juhaku/utoipa/pull/1554)
+* Always serialize the `description` of a `Response`, which OpenAPI 3.1 requires, even when it is empty (https://github.com/juhaku/utoipa/issues/1636)
 
 ## 6.0.0 - Sep 23 2026
 

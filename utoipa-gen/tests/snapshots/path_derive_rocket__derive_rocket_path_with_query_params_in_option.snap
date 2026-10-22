@@ -37,7 +37,8 @@ snapshot_kind: text
             "default": null
           }
         }
-      }
+      },
+      "description": ""
     },
     "400": {
       "content": {
@@ -46,7 +47,8 @@ snapshot_kind: text
             "default": null
           }
         }
-      }
+      },
+      "description": ""
     }
   }
 }

@@ -3,4 +3,6 @@ source: utoipa-gen/tests/response_derive_test.rs
 assertion_line: 171
 expression: v
 ---
-{}
+{
+  "description": ""
+}

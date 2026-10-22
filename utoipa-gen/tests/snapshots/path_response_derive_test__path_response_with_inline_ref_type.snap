@@ -19,6 +19,7 @@ expression: responses
           "type": "object"
         }
       }
-    }
+    },
+    "description": ""
   }
 }
