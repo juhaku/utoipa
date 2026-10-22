@@ -30,9 +30,12 @@ expression: responses
           "$ref": "#/components/schemas/BadRequest"
         }
       }
-    }
+    },
+    "description": ""
   },
-  "404": {},
+  "404": {
+    "description": ""
+  },
   "418": {
     "content": {
       "application/json": {
@@ -48,7 +51,8 @@ expression: responses
           "type": "object"
         }
       }
-    }
+    },
+    "description": ""
   },
   "500": {
     "$ref": "#/components/responses/Response"
