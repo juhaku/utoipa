@@ -1149,6 +1149,14 @@ pub trait IntoParams {
 pub trait IntoResponses {
     /// Returns an ordered map of response codes to responses.
     fn responses() -> BTreeMap<String, openapi::RefOr<openapi::response::Response>>;
+
+    /// Add the schemas referenced by the responses to `schemas`, so that they are registered as
+    /// components of the [`OpenApi`] document using the responses. This is implemented by
+    /// `#[derive(IntoResponses)]` and works the same way as [`ToSchema::schemas`].
+    #[allow(unused)]
+    fn schemas(schemas: &mut Vec<(String, openapi::RefOr<openapi::schema::Schema>)>) {
+        // nothing by default
+    }
 }
 
 #[cfg(feature = "auto_into_responses")]
@@ -1158,6 +1166,11 @@ impl<T: IntoResponses, E: IntoResponses> IntoResponses for Result<T, E> {
         responses.append(&mut E::responses());
 
         responses
+    }
+
+    fn schemas(schemas: &mut Vec<(String, openapi::RefOr<openapi::schema::Schema>)>) {
+        T::schemas(schemas);
+        E::schemas(schemas);
     }
 }
 

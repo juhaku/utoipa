@@ -335,3 +335,45 @@ fn derive_into_responses_enum_with_multiple_responses() {
 
     assert_json_snapshot!(responses);
 }
+
+#[test]
+fn derive_into_responses_collects_schemas() {
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct Inner {
+        value: String,
+    }
+
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct Item {
+        inner: Inner,
+    }
+
+    #[derive(utoipa::ToSchema)]
+    #[allow(unused)]
+    struct BadRequest {
+        message: String,
+    }
+
+    #[derive(utoipa::IntoResponses)]
+    #[allow(unused)]
+    enum ItemResponses {
+        #[response(status = 200)]
+        Success(Item),
+        #[response(status = 400)]
+        BadRequest(BadRequest),
+        #[response(status = 404)]
+        NotFound,
+    }
+
+    let mut schemas = Vec::new();
+    <ItemResponses as utoipa::IntoResponses>::schemas(&mut schemas);
+    let names = schemas
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect::<Vec<_>>();
+
+    // Referenced body schemas are collected together with the schemas they reference
+    assert_eq!(names, ["Item", "Inner", "BadRequest"]);
+}
