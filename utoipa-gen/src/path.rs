@@ -58,10 +58,32 @@ pub struct PathAttr<'p> {
 }
 
 impl<'p> PathAttr<'p> {
+    /// Add the responses resolved from the handler return type.
     #[cfg(feature = "auto_into_responses")]
-    pub fn responses_from_into_responses(&mut self, ty: &'p syn::TypePath) {
-        self.responses
-            .push(Response::IntoResponses(Cow::Borrowed(ty)))
+    pub fn responses_from_return_type(
+        &mut self,
+        auto_responses: Vec<crate::ext::auto_types::AutoResponse<'p>>,
+    ) {
+        use crate::ext::auto_types::AutoResponse;
+        use response::ResponseTuple;
+
+        // an explicitly declared success response replaces the automatic `Json<T>` response
+        let has_success_response = self.responses.iter().any(Response::is_success_tuple);
+        let auto_responses = auto_responses
+            .into_iter()
+            .filter_map(|auto_response| match auto_response {
+                AutoResponse::IntoResponses(ty) => {
+                    Some(Response::AutoIntoResponses(Cow::Borrowed(ty)))
+                }
+                AutoResponse::Json(body) if !has_success_response => {
+                    Some(Response::Tuple(ResponseTuple::json_ok(body)))
+                }
+                AutoResponse::Json(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        // automatic responses come first, so explicit responses with the same status code win
+        self.responses.splice(0..0, auto_responses);
     }
 
     #[cfg(any(
