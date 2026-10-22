@@ -221,6 +221,50 @@ fn derive_path_with_dyn_trait_compiles() {
 }
 
 #[test]
+fn derive_path_with_map_and_value_path_args() {
+    use std::collections::HashMap;
+
+    #[utoipa::path(
+        params(
+            ("name" = String, Path, description = "Name of the item"),
+        )
+    )]
+    #[get("/map/{name}")]
+    #[allow(unused)]
+    async fn get_by_map(path: Path<HashMap<String, String>>) -> impl Responder {
+        String::new()
+    }
+
+    #[utoipa::path]
+    #[get("/value/{name}")]
+    #[allow(unused)]
+    async fn get_by_value(path: Path<Value>) -> impl Responder {
+        String::new()
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(get_by_map, get_by_value))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let map_parameters = doc.pointer("/paths/~1map~1{name}/get/parameters").unwrap();
+
+    common::assert_json_array_len(map_parameters, 1);
+    assert_value! {map_parameters=>
+        "[0].in" = r#""path""#, "Parameter in"
+        "[0].name" = r#""name""#, "Parameter name"
+        "[0].description" = r#""Name of the item""#, "Parameter description"
+        "[0].schema.type" = r#""string""#, "Parameter schema type"
+    };
+
+    let value_parameters = doc.pointer("/paths/~1value~1{name}/get/parameters");
+    assert!(
+        value_parameters.is_none(),
+        "expected no parameters resolved from Path<Value>"
+    );
+}
+
+#[test]
 fn derive_complex_actix_web_path() {
     mod mod_derive_complex_actix_path {
         use actix_web::{get, web, HttpResponse, Responder};

@@ -90,9 +90,11 @@ fn split_path_args_and_request(
                 ValueType::Tuple => path_arg
                     .children
                     .expect("ValueType::Tuple will always have children"),
-                ValueType::Object | ValueType::Value => {
-                    unreachable!("Value arguments does not have ValueType::Object arguments")
-                }
+                // Maps and sequences such as `HashMap<K, V>` or `Vec<T>` deserialize from all path
+                // segments and `Option<T>` is not supported by actix-web, so they cannot be
+                // documented as a single parameter. Other generic wrappers and `serde_json::Value`
+                // are skipped as well, use `params(...)` for them.
+                ValueType::Object | ValueType::Value => Vec::new(),
             }),
         body_types.into_iter().map(|json| json.ty),
     )
