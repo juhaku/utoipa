@@ -1,0 +1,33 @@
+[package]
+name = "utoipa-ntex"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["utoipa", "ntex", "bindings"]
+repository = "https://github.com/Rayato159/utoipa"
+categories = ["web-programming"]
+authors = ["Ruangyot Nanchiang <rayato159@gmail.com>"]
+rust-version.workspace = true
+
+[dependencies]
+utoipa = { path = "../utoipa", version = "5" }
+# For local testing
+# ntex = { path = "../../ntex/ntex" }
+ntex = { version = "2", default-features = false }
+
+[dev-dependencies]
+utoipa = { path = "../utoipa", version = "5", features = ["macros", "debug"] }
+# For local testing
+# ntex = { path = "../../ntex/ntex", features = ["tokio"] }
+ntex = { version = "2", features = ["tokio"] }
+serde = "1"
+assert-json-diff = "2"
+serde_json = "1"
+
+[package.metadata.docs.rs]
+features = []
+rustdoc-args = ["--cfg", "doc_cfg"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }

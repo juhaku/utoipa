@@ -15,6 +15,7 @@ members = [
     "utoipa-axum",
     "utoipa-config",
     "utoipa-actix-web",
+    "utoipa-ntex",
 ]
 
 # cookie 0.18.1 (via rocket_http) does not compile against time 0.3.52+
@@ -44,4 +45,5 @@ order = [
     "utoipa-scalar",
     "utoipa-axum",
     "utoipa-actix-web",
+    "utoipa-ntex",
 ]
