@@ -1,0 +1,25 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "properties": {
+    "small_vec": {
+      "examples": [
+        [
+          1,
+          2
+        ]
+      ],
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "small_vec"
+  ],
+  "type": "object"
+}

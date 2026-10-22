@@ -2634,6 +2634,100 @@ fn derive_struct_with_examples() {
 }
 
 #[test]
+fn derive_unnamed_struct_vec_with_examples() {
+    let doc = api_doc! {
+        #[schema(examples(json!(["ns1.example.com.", "ns2.example.com."])))]
+        struct Nameservers(Vec<String>);
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_struct_with_vec_field_with_examples() {
+    let doc = api_doc! {
+        struct Post {
+            #[schema(examples(json!(["foobar", "barfoo"]), json!([])))]
+            values: Vec<String>,
+            #[schema(examples(json!(["foobar"])))]
+            optional_values: Option<Vec<String>>,
+            #[schema(nullable, examples(json!(["foobar"])))]
+            nullable_values: Vec<String>,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_struct_with_list_like_fields_with_examples() {
+    use std::collections::{BTreeSet, HashSet, LinkedList};
+
+    let doc = api_doc! {
+        struct Lists<'a> {
+            #[schema(examples(json!([1, 2])))]
+            linked_list: LinkedList<i32>,
+            #[schema(examples(json!([1, 2])))]
+            hash_set: HashSet<i32>,
+            #[schema(examples(json!([1, 2])))]
+            btree_set: BTreeSet<i32>,
+            #[schema(examples(json!([1, 2])))]
+            array: [i32; 2],
+            #[schema(examples(json!([1, 2])))]
+            slice: &'a [i32],
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+#[cfg(feature = "smallvec")]
+fn derive_struct_with_smallvec_field_with_examples() {
+    use smallvec::SmallVec;
+
+    let doc = api_doc! {
+        struct Lists {
+            #[schema(examples(json!([1, 2])))]
+            small_vec: SmallVec<[i32; 2]>,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_struct_with_map_field_with_examples() {
+    let doc = api_doc! {
+        struct Counts {
+            #[schema(examples(json!({"a": 1, "b": 2})))]
+            counts: HashMap<String, i32>,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
+fn derive_struct_with_inline_vec_field_keeps_item_examples() {
+    #[derive(ToSchema)]
+    #[schema(examples(json!({"name": "item"})))]
+    #[allow(unused)]
+    struct Item {
+        name: String,
+    }
+
+    let doc = api_doc! {
+        struct Items {
+            #[schema(inline, examples(json!([{"name": "first"}, {"name": "second"}])))]
+            items: Vec<Item>,
+        }
+    };
+
+    assert_json_snapshot!(doc);
+}
+
+#[test]
 fn derive_struct_with_self_reference() {
     let value = api_doc! {
         struct Item {
