@@ -6,7 +6,7 @@ use regex::{Captures, Regex};
 use syn::{parse::Parse, LitStr, Token};
 
 use crate::{
-    component::{GenericType, ValueType},
+    component::{GenericType, TypeTree, ValueType},
     ext::{ArgValue, ArgumentIn, MacroArg, ValueArgument},
     path::HttpMethod,
     Diagnostics, OptionExt,
@@ -39,7 +39,7 @@ impl ArgumentResolver for PathOperations {
                 let body = into_params_args
                     .iter()
                     .find(|arg| *arg.arg_type.get_name() == body)
-                    .map(|arg| arg.ty.clone())
+                    .map(|arg| without_form_wrappers(arg.ty.clone()))
                     .map(Into::into);
 
                 (
@@ -84,6 +84,47 @@ fn to_anonymous_value_arg<'a>(macro_arg: MacroArg) -> ValueArgument<'a> {
         argument_in,
         name: Some(Cow::Owned(name)),
     }
+}
+
+/// Rocket form wrappers that only change how a form is parsed, e.g. `Form<Contextual<'_, T>>`.
+const FORM_WRAPPERS: [&str; 3] = ["Contextual", "Strict", "Lenient"];
+
+/// Replace rocket form wrappers directly inside `Form` with the wrapped type, so that the request
+/// body schema is taken from `T` of `Form<Contextual<'_, T>>` instead of from the wrapper.
+fn without_form_wrappers(mut ty: TypeTree<'_>) -> TypeTree<'_> {
+    let is_form = is_named(&ty, "Form");
+
+    ty.children = ty.children.take().map(|children| {
+        children
+            .into_iter()
+            .map(|child| {
+                let is_form_wrapper = is_form
+                    && FORM_WRAPPERS
+                        .iter()
+                        .any(|wrapper| is_named(&child, wrapper));
+
+                if is_form_wrapper {
+                    child
+                        .children
+                        .into_iter()
+                        .flatten()
+                        .next()
+                        .expect("rocket form wrapper must have the wrapped type")
+                } else {
+                    without_form_wrappers(child)
+                }
+            })
+            .collect()
+    });
+
+    ty
+}
+
+fn is_named(ty: &TypeTree<'_>, name: &str) -> bool {
+    ty.path
+        .as_ref()
+        .and_then(|path| path.segments.last())
+        .is_some_and(|segment| segment.ident == name)
 }
 
 fn with_parameter_in(
