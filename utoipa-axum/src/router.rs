@@ -247,6 +247,11 @@ where
         Self(router, self.1)
     }
 
+    /// Pass through method for [`axum::Router<S>::has_routes`].
+    pub fn has_routes(&self) -> bool {
+        self.0.has_routes()
+    }
+
     /// Pass through method for [`axum::Router<S>::route`].
     pub fn route(self, path: &str, method_router: MethodRouter<S>) -> Self {
         Self(self.0.route(path, method_router), self.1)
