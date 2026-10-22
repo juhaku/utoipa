@@ -36,6 +36,10 @@ pub mod link;
 pub enum Response<'r> {
     /// A type that implements `utoipa::IntoResponses`.
     IntoResponses(Cow<'r, TypePath>),
+    /// A handler return type resolved with `auto_into_responses`, which documents no responses
+    /// when the type does not implement `utoipa::IntoResponses`.
+    #[cfg(feature = "auto_into_responses")]
+    AutoIntoResponses(Cow<'r, TypePath>),
     /// The tuple definition of a response.
     Tuple(ResponseTuple<'r>),
 }
@@ -81,6 +85,8 @@ impl Response<'_> {
                 _ => Ok(ResponseComponentSchemaIter::Empty),
             },
             Self::IntoResponses(_) => Ok(ResponseComponentSchemaIter::Empty),
+            #[cfg(feature = "auto_into_responses")]
+            Self::AutoIntoResponses(_) => Ok(ResponseComponentSchemaIter::Empty),
         }
     }
 }
@@ -762,6 +768,18 @@ impl ToTokensDiagnostics for Responses<'_> {
                         let span = path.span();
                         Ok(quote_spanned! {span =>
                             .responses_from_into_responses::<#path>()
+                        })
+                    }
+                    #[cfg(feature = "auto_into_responses")]
+                    Response::AutoIntoResponses(path) => {
+                        let span = path.span();
+                        Ok(quote_spanned! {span =>
+                            .responses_from_iter({
+                                #[allow(unused_imports)]
+                                use utoipa::__dev::{FromIntoResponses as _, NoResponses as _};
+                                let responses_of = &utoipa::__dev::ResponsesOf::<#path>(::core::marker::PhantomData);
+                                responses_of.responses()
+                            })
                         })
                     }
                     Response::Tuple(response) => {

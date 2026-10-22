@@ -338,3 +338,147 @@ fn path_operation_request_body_form() {
 
     assert_json_snapshot!(&path.pointer("/requestBody"))
 }
+
+#[test]
+fn path_operation_auto_types_skip_actix_responders() {
+    #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+    struct Item {
+        value: String,
+    }
+
+    #[utoipa::path]
+    #[post("/http-response")]
+    #[allow(unused)]
+    async fn http_response() -> HttpResponse {
+        HttpResponse::Ok().finish()
+    }
+
+    #[utoipa::path]
+    #[post("/json")]
+    #[allow(unused)]
+    async fn json() -> Json<Item> {
+        Json(Item {
+            value: String::new(),
+        })
+    }
+
+    mod result_alias {
+        use actix_web::{post, HttpResponse, Result};
+
+        #[utoipa::path]
+        #[post("/result-alias")]
+        #[allow(unused)]
+        pub async fn result_alias() -> Result<HttpResponse> {
+            Ok(HttpResponse::Ok().finish())
+        }
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(http_response, json, result_alias::result_alias))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    // actix-web responders cannot implement `IntoResponses`, so they are left out
+    for path in [
+        "/paths/~1http-response",
+        "/paths/~1json",
+        "/paths/~1result-alias",
+    ] {
+        let responses = doc.pointer(&format!("{path}/post/responses"));
+        assert_eq!(responses, Some(&serde_json::json!({})), "{path}");
+    }
+}
+
+#[test]
+fn path_operation_auto_types_result_with_actix_types() {
+    #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+    struct Item {
+        value: String,
+    }
+
+    #[derive(utoipa::IntoResponses)]
+    #[allow(unused)]
+    enum ItemResponse {
+        /// Item found
+        #[response(status = 200)]
+        Success(Item),
+    }
+
+    impl Responder for ItemResponse {
+        type Body = BoxBody;
+
+        fn respond_to(self, _: &actix_web::HttpRequest) -> actix_web::HttpResponse<Self::Body> {
+            match self {
+                Self::Success(item) => HttpResponse::Ok().json(item),
+            }
+        }
+    }
+
+    /// Error
+    #[derive(Debug, utoipa::IntoResponses)]
+    #[response(status = 500)]
+    struct Error;
+
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Error")
+        }
+    }
+
+    impl actix_web::ResponseError for Error {}
+
+    #[utoipa::path]
+    #[post("/item-or-error")]
+    #[allow(unused)]
+    async fn item_or_error() -> Result<ItemResponse, Error> {
+        Err(Error)
+    }
+
+    #[utoipa::path]
+    #[post("/json-or-error")]
+    #[allow(unused)]
+    async fn json_or_error() -> Result<Json<Item>, Error> {
+        Err(Error)
+    }
+
+    #[utoipa::path]
+    #[post("/actix-result")]
+    #[allow(unused)]
+    async fn actix_result() -> actix_web::Result<ItemResponse> {
+        Err(actix_web::error::ErrorInternalServerError("error"))
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(paths(item_or_error, json_or_error, actix_result))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let item_response = serde_json::json!({
+        "description": "Item found",
+        "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Item" } }
+        }
+    });
+    let error_response = serde_json::json!({ "description": "Error" });
+
+    let responses = doc.pointer("/paths/~1item-or-error/post/responses");
+    assert_eq!(
+        responses,
+        Some(&serde_json::json!({ "200": item_response, "500": error_response }))
+    );
+
+    // `Json<Item>` cannot implement `IntoResponses`, only the error responses are documented
+    let responses = doc.pointer("/paths/~1json-or-error/post/responses");
+    assert_eq!(
+        responses,
+        Some(&serde_json::json!({ "500": error_response }))
+    );
+
+    // `actix_web::Error` cannot implement `IntoResponses`, only the success responses are documented
+    let responses = doc.pointer("/paths/~1actix-result/post/responses");
+    assert_eq!(
+        responses,
+        Some(&serde_json::json!({ "200": item_response }))
+    );
+}
