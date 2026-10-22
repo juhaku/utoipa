@@ -1,0 +1,83 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "properties": {
+    "array": {
+      "examples": [
+        [
+          1,
+          2
+        ]
+      ],
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "btree_set": {
+      "examples": [
+        [
+          1,
+          2
+        ]
+      ],
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "hash_set": {
+      "examples": [
+        [
+          1,
+          2
+        ]
+      ],
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "linked_list": {
+      "examples": [
+        [
+          1,
+          2
+        ]
+      ],
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "slice": {
+      "examples": [
+        [
+          1,
+          2
+        ]
+      ],
+      "items": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "linked_list",
+    "hash_set",
+    "btree_set",
+    "array",
+    "slice"
+  ],
+  "type": "object"
+}

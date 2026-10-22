@@ -650,6 +650,23 @@ impl NamedStructSchema {
         let override_type_tree = value_type
             .as_ref()
             .map_try(|value_type| value_type.as_type_tree())?;
+
+        // typed examples are checked against the value type unless it is a virtual `Object` or
+        // `Value` type, in which case the actual field type is used
+        let examples_type = match (&value_type, &override_type_tree) {
+            (Some(value_type), Some(type_tree))
+                if !(type_tree.is_object() || type_tree.is_value()) =>
+            {
+                value_type.ty()
+            }
+            _ => &field.ty,
+        };
+        for feature in &mut field_features {
+            if let Feature::Examples(examples) = feature {
+                examples.set_type(examples_type);
+            }
+        }
+
         let comments = CommentAttributes::from_attributes(&field.attrs);
         let description = &ComponentDescription::CommentAttributes(&comments);
 

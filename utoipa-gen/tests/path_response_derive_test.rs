@@ -502,3 +502,46 @@ fn path_response_with_extensions() {
     let responses = value.pointer("/responses").unwrap();
     assert_json_snapshot!(responses);
 }
+
+#[test]
+fn derive_path_response_with_examples_from() {
+    #[derive(serde::Serialize, utoipa::ToSchema)]
+    #[allow(unused)]
+    struct User {
+        name: String,
+    }
+
+    impl User {
+        fn examples() -> impl IntoIterator<Item = (&'static str, User)> {
+            [
+                (
+                    "Demo",
+                    User {
+                        name: "Demo".to_string(),
+                    },
+                ),
+                (
+                    "John",
+                    User {
+                        name: "John".to_string(),
+                    },
+                ),
+            ]
+        }
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/foo",
+        responses(
+            (status = 200, body = User, examples(from = User::examples()))
+        )
+    )]
+    #[allow(unused)]
+    fn get_item() {}
+
+    let operation = serde_json::to_value(__path_get_item::operation()).unwrap();
+    let responses = operation.pointer("/responses").unwrap();
+
+    assert_json_snapshot!(responses);
+}

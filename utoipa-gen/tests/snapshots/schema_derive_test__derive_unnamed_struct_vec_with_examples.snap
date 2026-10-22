@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "examples": [
+    [
+      "ns1.example.com.",
+      "ns2.example.com."
+    ]
+  ],
+  "items": {
+    "type": "string"
+  },
+  "type": "array"
+}
