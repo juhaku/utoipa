@@ -46,7 +46,6 @@ impl ArgumentResolver for PathOperations {
                 into_params_args
                     .into_iter()
                     .flat_map(fn_arg::with_parameter_in)
-                    .map(Into::into)
                     .collect(),
             ),
             body.into_iter().next().map(Into::into),

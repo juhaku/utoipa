@@ -1040,3 +1040,51 @@ fn derive_path_with_multiple_methods_skip_connect() {
         __path_multiple_methods::methods()
     )
 }
+
+#[test]
+fn path_with_qualified_into_params_argument() {
+    use actix_web::{get, HttpResponse, Responder};
+    use serde_json::json;
+
+    #[derive(Deserialize, IntoParams)]
+    #[allow(unused)]
+    struct Filter {
+        age: i64,
+    }
+
+    struct Resource;
+
+    trait HasParams {
+        type Params: IntoParams;
+    }
+
+    impl HasParams for Resource {
+        type Params = Filter;
+    }
+
+    #[utoipa::path(
+        params(<Resource as HasParams>::Params),
+        responses(
+            (status = 200, description = "success response")
+        )
+    )]
+    #[get("/foo")]
+    #[allow(unused)]
+    async fn get_foo(query: Query<<Resource as HasParams>::Params>) -> impl Responder {
+        HttpResponse::Ok().json(json!({ "id": "foo" }))
+    }
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/~1foo/get/parameters").unwrap();
+
+    common::assert_json_array_len(parameters, 1);
+    assert_value! {parameters=>
+        "[0].in" = r#""query""#, "Parameter in"
+        "[0].name" = r#""age""#, "Parameter name"
+        "[0].schema.type" = r#""integer""#, "Parameter schema type"
+    }
+}

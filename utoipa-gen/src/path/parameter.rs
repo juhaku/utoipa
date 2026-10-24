@@ -81,8 +81,10 @@ impl<'p> Parameter<'p> {
 impl Parse for Parameter<'_> {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.fork().parse::<TypePath>().is_ok() {
+            let TypePath { qself, path, .. } = input.parse::<TypePath>()?;
             Ok(Self::IntoParamsIdent(IntoParamsIdentParameter {
-                path: Cow::Owned(input.parse::<TypePath>()?.path),
+                qself,
+                path: Cow::Owned(path),
                 parameter_in_fn: None,
             }))
         } else {
@@ -98,10 +100,16 @@ impl ToTokensDiagnostics for Parameter<'_> {
                 tokens.extend(quote_diagnostics! { .parameter(@parameter) }?);
             }
             Parameter::IntoParamsIdent(IntoParamsIdentParameter {
+                qself,
                 path,
                 parameter_in_fn,
             }) => {
                 let last_ident = &path.segments.last().unwrap().ident;
+                let path = TypePath {
+                    attrs: Vec::new(),
+                    qself: qself.clone(),
+                    path: path.clone().into_owned(),
+                };
 
                 let default_parameter_in_provider = &quote! { || None };
                 let parameter_in_provider = parameter_in_fn
@@ -156,6 +164,7 @@ impl<'a> From<crate::ext::ValueArgument<'a>> for Parameter<'a> {
 impl<'a> From<crate::ext::IntoParamsType<'a>> for Parameter<'a> {
     fn from(value: crate::ext::IntoParamsType<'a>) -> Self {
         Self::IntoParamsIdent(IntoParamsIdentParameter {
+            qself: value.qself,
             path: value.type_path.expect("IntoParams type must have a path"),
             parameter_in_fn: Some(value.parameter_in_provider),
         })
@@ -421,25 +430,35 @@ impl ToTokensDiagnostics for ValueParameter<'_> {
 
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct IntoParamsIdentParameter<'i> {
+    /// Qualified self of the type, e.g. `<Foo as Bar>` in `<Foo as Bar>::Params`.
+    pub qself: Option<syn::QSelf>,
     pub path: Cow<'i, syn::Path>,
     /// quote!{ ... } of function which should implement `parameter_in_provider` for [`utoipa::IntoParams::into_param`]
     parameter_in_fn: Option<TokenStream>,
 }
 
-// Compare paths loosely only by segment idents ignoring possible generics
+// Compare paths loosely only by qualified self and segment idents ignoring possible generics
 impl PartialEq for IntoParamsIdentParameter<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.path
-            .segments
-            .iter()
-            .map(|segment| &segment.ident)
-            .collect::<Vec<_>>()
-            == other
+        let qself_tokens = |qself: &Option<syn::QSelf>| {
+            qself
+                .as_ref()
+                .map(|qself| (qself.ty.to_token_stream().to_string(), qself.position))
+        };
+
+        qself_tokens(&self.qself) == qself_tokens(&other.qself)
+            && self
                 .path
                 .segments
                 .iter()
                 .map(|segment| &segment.ident)
                 .collect::<Vec<_>>()
+                == other
+                    .path
+                    .segments
+                    .iter()
+                    .map(|segment| &segment.ident)
+                    .collect::<Vec<_>>()
     }
 }
 

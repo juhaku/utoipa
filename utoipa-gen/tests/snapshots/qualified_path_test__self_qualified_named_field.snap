@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/qualified_path_test.rs
+expression: "schema_and_references::<Foo>()"
+---
+{
+  "references": [
+    "String"
+  ],
+  "schema": {
+    "properties": {
+      "bar": {
+        "$ref": "#/components/schemas/String"
+      }
+    },
+    "required": [
+      "bar"
+    ],
+    "type": "object"
+  }
+}

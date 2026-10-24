@@ -1,0 +1,34 @@
+---
+source: utoipa-gen/tests/qualified_path_test.rs
+expression: value
+---
+{
+  "references": [
+    "Body",
+    "Body"
+  ],
+  "schema": {
+    "properties": {
+      "list": {
+        "items": {
+          "$ref": "#/components/schemas/Body"
+        },
+        "type": "array"
+      },
+      "optional": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Body"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "list"
+    ],
+    "type": "object"
+  }
+}
