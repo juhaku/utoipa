@@ -5,6 +5,10 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Unreleased
 
+### Added
+
+* Add support for `std::net::IpAddr`, `Ipv4Addr` and `Ipv6Addr` (https://github.com/juhaku/utoipa/issues/1512)
+
 ### Fixed
 
 * Fix unsigned integer known format serialization (https://github.com/juhaku/utoipa/pull/1554)

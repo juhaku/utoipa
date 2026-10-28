@@ -340,6 +340,31 @@ fn uuid_type_generic_argument() {
 }
 
 #[test]
+fn ip_addr_type_generic_argument() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    pub struct High<T> {
+        high: T,
+    }
+
+    #[derive(ToSchema)]
+    pub struct HighIpv4(High<Option<std::net::Ipv4Addr>>);
+
+    #[derive(ToSchema)]
+    pub struct HighIpv6(High<::std::net::Ipv6Addr>);
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(HighIpv4, HighIpv6, High<std::net::IpAddr>)))]
+    struct Api;
+
+    let mut api = Api::openapi();
+    api.info = Info::new("title", "version");
+
+    assert_json_snapshot!(api);
+}
+
+#[test]
 #[ignore = "arrays, slices, tuples as generic argument is not supported at the moment"]
 fn slice_generic_args() {
     #![allow(unused)]
