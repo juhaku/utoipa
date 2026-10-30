@@ -1,0 +1,41 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "properties": {
+    "items": {
+      "examples": [
+        [
+          {
+            "name": "first"
+          },
+          {
+            "name": "second"
+          }
+        ]
+      ],
+      "items": {
+        "examples": [
+          {
+            "name": "item"
+          }
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "type": "object"
+}
