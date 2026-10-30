@@ -584,6 +584,43 @@ fn derive_path_params_with_examples() {
 }
 
 #[test]
+fn derive_into_params_with_examples() {
+    let operation = api_fn_doc_with_params! {get: "/foo" =>
+        struct MyParams {
+            #[param(examples(from = [("one", 1u64), ("two", 2u64)]))]
+            id: u64,
+            #[param(examples(("plain" = (value = json!("value"), summary = "Plain value"))))]
+            name: String,
+            #[param(examples(from = [("pair", vec!["a".to_string(), "b".to_string()])]))]
+            vec: Vec<String>,
+        }
+    };
+    let parameters = operation.get("parameters").unwrap();
+    assert_json_snapshot!(parameters);
+}
+
+#[test]
+fn derive_path_params_tuple_with_examples() {
+    #[utoipa::path(
+        get,
+        path = "/foo/{id}",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            ("id" = u64, Path, examples(from = [("one", 1u64), ("two", 2u64)])),
+            ("q" = String, Query, examples(("plain" = (value = json!("query")))))
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo() {}
+
+    let operation = serde_json::to_value(__path_get_foo::operation()).unwrap();
+    let parameters = operation.get("parameters").unwrap();
+    assert_json_snapshot!(parameters);
+}
+
+#[test]
 fn path_parameters_with_free_form_properties() {
     let operation = api_fn_doc_with_params! {get: "/foo" =>
         struct MyParams {

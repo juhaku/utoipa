@@ -14,8 +14,8 @@ use crate::{
             self,
             attributes::{
                 AdditionalProperties, AllowReserved, Example, Explode, Format, Ignore, Inline,
-                IntoParamsNames, Nullable, ReadOnly, Rename, RenameAll, SchemaWith, Style,
-                WriteOnly, XmlAttr,
+                IntoParamsNames, Nullable, ParamExamples, ReadOnly, Rename, RenameAll, SchemaWith,
+                Style, WriteOnly, XmlAttr,
             },
             validation::{
                 ExclusiveMaximum, ExclusiveMinimum, MaxItems, MaxLength, Maximum, MinItems,
@@ -299,6 +299,7 @@ impl Parse for FieldFeatures {
             Style,
             AllowReserved,
             Example,
+            ParamExamples,
             Explode,
             SchemaWith,
             component::features::attributes::Required,
@@ -423,6 +424,20 @@ impl Param {
                 .as_ref()
                 .map_try(|value_type| value_type.as_type_tree())?
                 .unwrap_or(type_tree);
+
+            // typed examples are checked against the value type unless it is a virtual `Object`
+            // or `Value` type, in which case the actual field type is used
+            let examples_type = match &value_type {
+                Some(value_type) if !(component.is_object() || component.is_value()) => {
+                    value_type.ty()
+                }
+                _ => &field.ty,
+            };
+            for feature in &mut param_features {
+                if let Feature::ParamExamples(examples) = feature {
+                    examples.set_type(examples_type);
+                }
+            }
             let alias_type = component.get_alias_type()?;
             let alias_type_tree = alias_type.as_ref().map_try(TypeTree::from_type)?;
             let component = alias_type_tree.as_ref().unwrap_or(&component);

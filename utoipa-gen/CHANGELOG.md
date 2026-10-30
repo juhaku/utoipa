@@ -6,6 +6,8 @@
 
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 * Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
+* Add typed `examples(from = ...)` taking examples from a Rust expression implementing `IntoIterator` to `ToSchema`, `IntoParams`, `ToResponse`, `IntoResponses` and `request_body`, `responses` and `params` of `#[utoipa::path]`. Examples are converted to the type the schema, body or parameter describes, so an example of the wrong type fails to compile (https://github.com/juhaku/utoipa/pull/1639)
+* Add named `examples(...)` to parameters of `IntoParams` and `#[utoipa::path]` (https://github.com/juhaku/utoipa/pull/1639)
 
 ### Changed
 
@@ -16,6 +18,7 @@
 * Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
 * chore: Pin uuid < 1.27 for MSRV 1.88 compatibility (https://github.com/juhaku/utoipa/pull/1630)
 * Deny additional properties on struct variants of `deny_unknown_fields` enums (https://github.com/juhaku/utoipa/pull/1631)
+* Place `examples` of `Vec` and other list types on the array schema instead of its `items`, and `examples` of map types on the object schema instead of its `propertyNames` and `additionalProperties`. This changes the generated output for anyone relying on the old placement (https://github.com/juhaku/utoipa/pull/1638)
 
 ## 6.0.1 - Sep 23 2026
 

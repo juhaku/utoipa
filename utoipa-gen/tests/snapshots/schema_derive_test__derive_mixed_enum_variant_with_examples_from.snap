@@ -1,0 +1,52 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "oneOf": [
+    {
+      "examples": [
+        {
+          "Circle": {
+            "radius": 1
+          }
+        }
+      ],
+      "properties": {
+        "Circle": {
+          "properties": {
+            "radius": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "radius"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "Circle"
+      ],
+      "type": "object"
+    },
+    {
+      "examples": [
+        {
+          "Square": 2
+        }
+      ],
+      "properties": {
+        "Square": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Square"
+      ],
+      "type": "object"
+    }
+  ]
+}
