@@ -7,6 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Fixed
 
+* Fix deserializing a schema that has no `type`, such as the empty schema `{}` which accepts any value (https://github.com/juhaku/utoipa/issues/1192)
 * Fix unsigned integer known format serialization (https://github.com/juhaku/utoipa/pull/1554)
 
 ## 6.0.0 - Sep 23 2026
