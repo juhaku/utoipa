@@ -540,7 +540,7 @@ impl ComponentsBuilder {
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[serde(untagged, rename_all = "camelCase")]
+#[serde(untagged, rename_all = "camelCase", from = "SchemaRepr")]
 pub enum Schema {
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
@@ -570,6 +570,48 @@ impl Default for Schema {
     fn default() -> Self {
         Schema::Object(Object::default())
     }
+}
+
+/// Deserialization shape of [`Schema`].
+///
+/// The variants are tried in order and the first one that matches wins. [`Object`] requires a
+/// `type`, so a `oneOf`, `allOf` or `anyOf` schema without one is not taken for an [`Object`].
+/// A schema with neither a `type` nor a composite keyword, such as `{}` or
+/// `{"description": "..."}`, accepts any value and is matched last as an untyped [`Object`].
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum SchemaRepr {
+    Array(Array),
+    Object(Object),
+    OneOf(OneOf),
+    AllOf(AllOf),
+    AnyOf(AnyOf),
+    #[serde(deserialize_with = "deserialize_untyped_object")]
+    Untyped(Object),
+}
+
+impl From<SchemaRepr> for Schema {
+    fn from(repr: SchemaRepr) -> Self {
+        match repr {
+            SchemaRepr::Array(array) => Schema::Array(array),
+            SchemaRepr::Object(object) | SchemaRepr::Untyped(object) => Schema::Object(object),
+            SchemaRepr::OneOf(one_of) => Schema::OneOf(one_of),
+            SchemaRepr::AllOf(all_of) => Schema::AllOf(all_of),
+            SchemaRepr::AnyOf(any_of) => Schema::AnyOf(any_of),
+        }
+    }
+}
+
+/// Deserialize an [`Object`] without a `type` as [`SchemaType::AnyValue`].
+///
+/// [`SchemaType::AnyValue`] deserializes from a `null` type, so a missing `type` is set to `null`.
+fn deserialize_untyped_object<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Object, D::Error> {
+    let mut schema = serde_json::Map::<String, Value>::deserialize(deserializer)?;
+    schema.entry("type").or_insert(Value::Null);
+
+    Object::deserialize(Value::Object(schema)).map_err(serde::de::Error::custom)
 }
 
 /// OpenAPI [Discriminator][discriminator] object which can be optionally used together with
@@ -3240,5 +3282,105 @@ mod tests {
 
         let value = serde_json::to_value(&json_value).unwrap();
         assert_eq!(value.get("x-some-extension"), Some(&expected));
+    }
+
+    /// Deserialize `input` as `T` and assert it serializes back to the very same JSON.
+    fn assert_round_trip<T: serde::de::DeserializeOwned + Serialize>(input: Value) {
+        let deserialized: T = serde_json::from_value(input.clone())
+            .unwrap_or_else(|error| panic!("should deserialize {input}: {error}"));
+
+        assert_eq!(serde_json::to_value(&deserialized).unwrap(), input);
+    }
+
+    #[test]
+    fn deserialize_reserialize_empty_schema() {
+        assert_round_trip::<RefOr<Schema>>(json!({}));
+        assert_round_trip::<Schema>(json!({}));
+    }
+
+    #[test]
+    fn deserialize_reserialize_schema_without_type() {
+        assert_round_trip::<RefOr<Schema>>(json!({ "description": "any value" }));
+        assert_round_trip::<RefOr<Schema>>(json!({
+            "properties": { "name": { "type": "string" } },
+            "required": ["name"],
+        }));
+    }
+
+    #[test]
+    fn deserialize_reserialize_empty_schema_in_properties_and_items() {
+        assert_round_trip::<RefOr<Schema>>(json!({
+            "type": "object",
+            "properties": {
+                "details": {},
+                "tags": { "type": "array", "items": {} },
+                "described": { "description": "any value" },
+            },
+        }));
+    }
+
+    #[test]
+    fn deserialize_reserialize_empty_schema_in_additional_properties() {
+        assert_round_trip::<RefOr<Schema>>(json!({
+            "type": "object",
+            "additionalProperties": {},
+        }));
+    }
+
+    #[test]
+    fn deserialize_reserialize_empty_schema_in_composites() {
+        assert_round_trip::<RefOr<Schema>>(json!({ "oneOf": [{}, { "type": "string" }] }));
+        assert_round_trip::<RefOr<Schema>>(json!({ "allOf": [{}] }));
+        assert_round_trip::<RefOr<Schema>>(json!({ "anyOf": [{}] }));
+    }
+
+    #[test]
+    fn deserialize_reserialize_empty_schema_in_open_api_document() {
+        assert_round_trip::<OpenApi>(json!({
+            "openapi": "3.1.0",
+            "info": { "title": "Pet store", "version": "1.0.0" },
+            "paths": {
+                "/pets": {
+                    "post": {
+                        "requestBody": {
+                            "content": { "application/json": { "schema": {} } }
+                        },
+                        "responses": {}
+                    }
+                }
+            },
+        }));
+    }
+
+    #[test]
+    fn deserialize_empty_schema_is_any_value_object() {
+        let schema: Schema = serde_json::from_value(json!({})).unwrap();
+
+        let Schema::Object(object) = schema else {
+            panic!("expected Schema::Object");
+        };
+        assert!(object.schema_type.is_any_value());
+    }
+
+    #[test]
+    fn deserialize_schema_without_type_keeps_composite_variants() {
+        let one_of: Schema = serde_json::from_value(json!({ "oneOf": [{}] })).unwrap();
+        let all_of: Schema = serde_json::from_value(json!({ "allOf": [{}] })).unwrap();
+        let any_of: Schema = serde_json::from_value(json!({ "anyOf": [{}] })).unwrap();
+
+        assert!(matches!(one_of, Schema::OneOf(_)));
+        assert!(matches!(all_of, Schema::AllOf(_)));
+        assert!(matches!(any_of, Schema::AnyOf(_)));
+    }
+
+    #[test]
+    fn deserialize_typed_schema_is_unchanged() {
+        let object: Schema = serde_json::from_value(json!({ "type": "string" })).unwrap();
+        let array: Schema =
+            serde_json::from_value(json!({ "type": "array", "items": { "type": "string" } }))
+                .unwrap();
+
+        assert!(matches!(object, Schema::Object(_)));
+        assert!(matches!(array, Schema::Array(_)));
     }
 }
