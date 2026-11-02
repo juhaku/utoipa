@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/request_body_derive_test.rs
 expression: body
-snapshot_kind: text
 ---
 {
   "content": {
@@ -9,7 +8,7 @@ snapshot_kind: text
       "schema": {
         "oneOf": [
           {
-            "$ref": "#/components/schemas/Foo"
+            "$ref": "#/components/schemas/request_body_derive_test.derive_request_body_complex_required_explicit_false_success.Foo"
           },
           {
             "type": "null"

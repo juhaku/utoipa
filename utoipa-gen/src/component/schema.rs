@@ -138,9 +138,25 @@ impl ToTokensDiagnostics for Schema<'_> {
             .collect::<Array<_>>();
 
         let name = if let Some(schema_as) = variant.get_schema_as() {
-            schema_as.to_schema_formatted_string()
+            let name_str = schema_as.to_schema_formatted_string();
+            quote! { #name_str }
         } else {
-            ident.to_string()
+            quote! {
+                {
+                    static NAME: ::std::sync::OnceLock<String> = ::std::sync::OnceLock::new();
+
+                    NAME.get_or_init(|| {
+                        let name = ::std::any::type_name::<#ident #ty_generics>();
+                        name
+                            .replace("::", ".")
+                            .split('<')
+                            .next()
+                            .unwrap()
+                            .to_string()
+                    })
+                    .as_str()
+                }
+            }
         };
 
         // TODO refactor this to avoid clone

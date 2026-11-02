@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "discriminator": {
@@ -13,10 +12,10 @@ snapshot_kind: text
   },
   "oneOf": [
     {
-      "$ref": "#/components/schemas/BarBarInternal"
+      "$ref": "#/components/schemas/schema_derive_test.derive_mixed_enum_with_discriminator_with_mapping.BarBarInternal"
     },
     {
-      "$ref": "#/components/schemas/FooInternal"
+      "$ref": "#/components/schemas/schema_derive_test.derive_mixed_enum_with_discriminator_with_mapping.FooInternal"
     }
   ]
 }

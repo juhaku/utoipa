@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/response_derive_test.rs
-assertion_line: 336
 expression: responses
 ---
 {
@@ -27,7 +26,7 @@ expression: responses
     "content": {
       "application/json": {
         "schema": {
-          "$ref": "#/components/schemas/BadRequest"
+          "$ref": "#/components/schemas/response_derive_test.derive_into_responses_enum_with_multiple_responses.BadRequest"
         }
       }
     }

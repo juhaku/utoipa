@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: owner
-snapshot_kind: text
 ---
 {
   "properties": {
@@ -11,7 +10,7 @@ snapshot_kind: text
       },
       "oneOf": [
         {
-          "$ref": "#/components/schemas/Book"
+          "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_default_attr_field.Book"
         },
         {
           "type": "null"
@@ -25,19 +24,19 @@ snapshot_kind: text
         }
       ],
       "items": {
-        "$ref": "#/components/schemas/Book"
+        "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_default_attr_field.Book"
       },
       "type": "array"
     },
     "favorite_book": {
-      "$ref": "#/components/schemas/Book",
+      "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_default_attr_field.Book",
       "default": {
         "name": "Dune"
       }
     },
     "leases": {
       "additionalProperties": {
-        "$ref": "#/components/schemas/Book"
+        "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_default_attr_field.Book"
       },
       "default": {
         "National Library": {

@@ -1,14 +1,13 @@
 ---
 source: utoipa-gen/tests/request_body_derive_test.rs
 expression: body
-snapshot_kind: text
 ---
 {
   "content": {
     "application/json": {
       "schema": {
         "items": {
-          "$ref": "#/components/schemas/Foo"
+          "$ref": "#/components/schemas/request_body_derive_test.derive_request_body_option_array.Foo"
         },
         "type": [
           "array",

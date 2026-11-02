@@ -1,14 +1,13 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "oneOf": [
     {
       "properties": {
         "Item": {
-          "$ref": "#/components/schemas/EnumValue"
+          "$ref": "#/components/schemas/schema_derive_test.derive_enum_with_self_reference.EnumValue"
         }
       },
       "required": [
@@ -21,7 +20,7 @@ snapshot_kind: text
         "Item2": {
           "properties": {
             "value": {
-              "$ref": "#/components/schemas/EnumValue"
+              "$ref": "#/components/schemas/schema_derive_test.derive_enum_with_self_reference.EnumValue"
             }
           },
           "required": [

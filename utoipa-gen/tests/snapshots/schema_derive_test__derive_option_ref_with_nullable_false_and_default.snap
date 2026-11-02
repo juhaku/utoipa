@@ -7,7 +7,7 @@ expression: schema
     "default_optional_ref": {
       "oneOf": [
         {
-          "$ref": "#/components/schemas/RefType"
+          "$ref": "#/components/schemas/schema_derive_test.derive_option_ref_with_nullable_false_and_default.RefType"
         },
         {
           "type": "null"
@@ -15,7 +15,7 @@ expression: schema
       ]
     },
     "optional_ref": {
-      "$ref": "#/components/schemas/RefType",
+      "$ref": "#/components/schemas/schema_derive_test.derive_option_ref_with_nullable_false_and_default.RefType",
       "default": {
         "value": "foo"
       }

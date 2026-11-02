@@ -13,7 +13,18 @@ expression: doc
       }
     },
     "schemas": {
-      "MergedOnly": {
+      "Shared": {
+        "properties": {
+          "merged": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "merged"
+        ],
+        "type": "object"
+      },
+      "openapi_derive.derive_merge_openapi_keeps_existing_items_and_appends_missing_ones.merged.MergedOnly": {
         "properties": {
           "value": {
             "format": "int32",
@@ -25,7 +36,7 @@ expression: doc
         ],
         "type": "object"
       },
-      "ParentOnly": {
+      "openapi_derive.derive_merge_openapi_keeps_existing_items_and_appends_missing_ones.parent.ParentOnly": {
         "properties": {
           "value": {
             "type": "string"
@@ -36,7 +47,7 @@ expression: doc
         ],
         "type": "object"
       },
-      "Shared": {
+      "openapi_derive.derive_merge_openapi_keeps_existing_items_and_appends_missing_ones.parent.Shared": {
         "properties": {
           "parent": {
             "type": "string"

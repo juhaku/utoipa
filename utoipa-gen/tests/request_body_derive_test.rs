@@ -42,7 +42,7 @@ fn derive_path_request_body_simple_success() {
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
 
     assert_value! {doc=>
-        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###""#/components/schemas/Foo""###, "Request body content object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###""#/components/schemas/request_body_derive_test.derive_request_body_simple.Foo""###, "Request body content object type"
         "paths.~1foo.post.requestBody.content.text~1plain" = r###"null"###, "Request body content object type not text/plain"
         "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"
         "paths.~1foo.post.requestBody.description" = r###"null"###, "Request body description"
@@ -76,7 +76,7 @@ fn derive_path_request_body_simple_array_success() {
 
     assert_value! {doc=>
         "paths.~1foo.post.requestBody.content.application~1json.schema.$ref" = r###"null"###, "Request body content object type"
-        "paths.~1foo.post.requestBody.content.application~1json.schema.items.$ref" = r###""#/components/schemas/Foo""###, "Request body content items object type"
+        "paths.~1foo.post.requestBody.content.application~1json.schema.items.$ref" = r###""#/components/schemas/request_body_derive_test.derive_path_request_body_simple_array_success.Foo""###, "Request body content items object type"
         "paths.~1foo.post.requestBody.content.application~1json.schema.type" = r###""array""###, "Request body content items type"
         "paths.~1foo.post.requestBody.content.text~1plain" = r###"null"###, "Request body content object type not text/plain"
         "paths.~1foo.post.requestBody.required" = r###"true"###, "Request body required"

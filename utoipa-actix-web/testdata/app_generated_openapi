@@ -13,7 +13,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Foobar"
+                  "$ref": "#/components/schemas/utoipa_actix_web.tests.inner.Foobar"
                 }
               }
             }
@@ -35,7 +35,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Value12"
+                  "$ref": "#/components/schemas/utoipa_actix_web.tests.Value12"
                 }
               }
             }
@@ -51,7 +51,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Value1"
+                  "$ref": "#/components/schemas/utoipa_actix_web.tests.Value1"
                 }
               }
             }
@@ -67,7 +67,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ValueValue"
+                  "$ref": "#/components/schemas/utoipa_actix_web.tests.ValueValue"
                 }
               }
             }
@@ -78,33 +78,18 @@
   },
   "components": {
     "schemas": {
-      "Bar": {
-        "type": "integer",
-        "format": "int32"
-      },
-      "Foobar": {
+      "utoipa_actix_web.tests.Value1": {
         "type": "object",
         "required": [
           "bar"
         ],
         "properties": {
           "bar": {
-            "$ref": "#/components/schemas/Bar"
+            "$ref": "#/components/schemas/utoipa_actix_web.tests.Value2"
           }
         }
       },
-      "Value1": {
-        "type": "object",
-        "required": [
-          "bar"
-        ],
-        "properties": {
-          "bar": {
-            "$ref": "#/components/schemas/Value2"
-          }
-        }
-      },
-      "Value12": {
+      "utoipa_actix_web.tests.Value12": {
         "type": "object",
         "required": [
           "v"
@@ -115,11 +100,11 @@
           }
         }
       },
-      "Value2": {
+      "utoipa_actix_web.tests.Value2": {
         "type": "integer",
         "format": "int32"
       },
-      "ValueValue": {
+      "utoipa_actix_web.tests.ValueValue": {
         "type": "object",
         "required": [
           "value"
@@ -128,6 +113,21 @@
           "value": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "utoipa_actix_web.tests.inner.Bar": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "utoipa_actix_web.tests.inner.Foobar": {
+        "type": "object",
+        "required": [
+          "bar"
+        ],
+        "properties": {
+          "bar": {
+            "$ref": "#/components/schemas/utoipa_actix_web.tests.inner.Bar"
           }
         }
       }

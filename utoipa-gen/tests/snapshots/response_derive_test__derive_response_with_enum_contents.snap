@@ -1,13 +1,12 @@
 ---
 source: utoipa-gen/tests/response_derive_test.rs
-assertion_line: 123
 expression: v
 ---
 {
   "content": {
     "application/json/1": {
       "schema": {
-        "$ref": "#/components/schemas/Admin"
+        "$ref": "#/components/schemas/response_derive_test.derive_response_with_enum_contents.Admin"
       },
       "examples": {
         "Person1": {
@@ -24,7 +23,7 @@ expression: v
     },
     "application/json/2": {
       "schema": {
-        "$ref": "#/components/schemas/Moderator"
+        "$ref": "#/components/schemas/response_derive_test.derive_response_with_enum_contents.Moderator"
       },
       "example": {
         "name": "name3"

@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/path_derive.rs
 expression: parameters
-snapshot_kind: text
 ---
 [
   {
@@ -10,7 +9,7 @@ snapshot_kind: text
     "required": true,
     "schema": {
       "additionalProperties": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/path_derive.derive_path_params_map.Foo"
       },
       "propertyNames": {
         "type": "string"
