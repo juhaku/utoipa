@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "properties": {
@@ -9,7 +8,7 @@ snapshot_kind: text
       "type": "string"
     },
     "previous": {
-      "$ref": "#/components/schemas/Item"
+      "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_self_reference.Item"
     }
   },
   "required": [

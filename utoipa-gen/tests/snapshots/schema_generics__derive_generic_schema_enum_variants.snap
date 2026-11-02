@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
-assertion_line: 202
 expression: api
 ---
 {
@@ -12,7 +11,7 @@ expression: api
   "paths": {},
   "components": {
     "schemas": {
-      "FooStruct_Option_i32": {
+      "schema_generics.derive_generic_schema_enum_variants.FooStruct_Option_i32": {
         "type": "object",
         "required": [
           "foo"
@@ -31,7 +30,7 @@ expression: api
           }
         }
       },
-      "FoosEnum": {
+      "schema_generics.derive_generic_schema_enum_variants.FoosEnum": {
         "oneOf": [
           {
             "type": "object",
@@ -40,7 +39,7 @@ expression: api
             ],
             "properties": {
               "ThingNoAliasOption": {
-                "$ref": "#/components/schemas/FooStruct_Option_i32"
+                "$ref": "#/components/schemas/schema_generics.derive_generic_schema_enum_variants.FooStruct_Option_i32"
               }
             }
           },

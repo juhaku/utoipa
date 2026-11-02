@@ -1,10 +1,9 @@
 ---
 source: utoipa-gen/tests/path_response_derive_test.rs
 expression: schemas
-snapshot_kind: text
 ---
 {
-  "User": {
+  "path_response_derive_test.derive_path_with_multiple_examples_auto_collect_schemas.User": {
     "properties": {
       "name": {
         "type": "string"

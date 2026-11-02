@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
-assertion_line: 290
 expression: api
 ---
 {
@@ -12,24 +11,24 @@ expression: api
   "paths": {},
   "components": {
     "schemas": {
-      "HighBox": {
+      "schema_generics.high_order_types.HighBox": {
         "type": "object",
         "required": [
           "value"
         ],
         "properties": {
           "value": {
-            "$ref": "#/components/schemas/High_Box_i32"
+            "$ref": "#/components/schemas/schema_generics.high_order_types.High_Box_i32"
           }
         }
       },
-      "HighCow": {
-        "$ref": "#/components/schemas/High_Cow_i32"
+      "schema_generics.high_order_types.HighCow": {
+        "$ref": "#/components/schemas/schema_generics.high_order_types.High_Cow_i32"
       },
-      "HighRefCell": {
-        "$ref": "#/components/schemas/High_RefCell_i32"
+      "schema_generics.high_order_types.HighRefCell": {
+        "$ref": "#/components/schemas/schema_generics.high_order_types.High_RefCell_i32"
       },
-      "High_Box_i32": {
+      "schema_generics.high_order_types.High_Box_i32": {
         "type": "object",
         "required": [
           "high"
@@ -41,7 +40,7 @@ expression: api
           }
         }
       },
-      "High_Cow_i32": {
+      "schema_generics.high_order_types.High_Cow_i32": {
         "type": "object",
         "required": [
           "high"
@@ -53,7 +52,7 @@ expression: api
           }
         }
       },
-      "High_RefCell_i32": {
+      "schema_generics.high_order_types.High_RefCell_i32": {
         "type": "object",
         "required": [
           "high"

@@ -1,11 +1,10 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: map
-snapshot_kind: text
 ---
 {
   "additionalProperties": {
-    "$ref": "#/components/schemas/Foo"
+    "$ref": "#/components/schemas/schema_derive_test.derive_flattened_map_ref_property.Foo"
   },
   "type": "object"
 }

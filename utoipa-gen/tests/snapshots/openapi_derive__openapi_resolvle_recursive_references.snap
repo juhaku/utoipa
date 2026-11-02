@@ -1,13 +1,12 @@
 ---
 source: utoipa-gen/tests/openapi_derive.rs
 expression: schemas
-snapshot_kind: text
 ---
 {
-  "Account": {
+  "openapi_derive.openapi_resolvle_recursive_references.Account": {
     "properties": {
       "foobar": {
-        "$ref": "#/components/schemas/Foobar"
+        "$ref": "#/components/schemas/openapi_derive.openapi_resolvle_recursive_references.Foobar"
       },
       "id": {
         "format": "int32",
@@ -20,16 +19,16 @@ snapshot_kind: text
     ],
     "type": "object"
   },
-  "Foobar": {
+  "openapi_derive.openapi_resolvle_recursive_references.Foobar": {
     "default": null
   },
-  "Person": {
+  "openapi_derive.openapi_resolvle_recursive_references.Person": {
     "properties": {
       "accounts": {
         "items": {
           "oneOf": [
             {
-              "$ref": "#/components/schemas/Account"
+              "$ref": "#/components/schemas/openapi_derive.openapi_resolvle_recursive_references.Account"
             },
             {
               "type": "null"

@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/path_response_derive_test.rs
-assertion_line: 351
 expression: responses
 ---
 {
@@ -23,7 +22,7 @@ expression: responses
           }
         },
         "schema": {
-          "$ref": "#/components/schemas/User"
+          "$ref": "#/components/schemas/path_response_derive_test.derive_path_with_multiple_examples_auto_collect_schemas.User"
         }
       }
     }

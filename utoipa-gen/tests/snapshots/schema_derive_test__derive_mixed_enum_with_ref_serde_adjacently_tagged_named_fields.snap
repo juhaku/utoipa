@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "oneOf": [
@@ -37,7 +36,7 @@ snapshot_kind: text
         "content": {
           "properties": {
             "bar": {
-              "$ref": "#/components/schemas/Bar"
+              "$ref": "#/components/schemas/schema_derive_test.derive_mixed_enum_with_ref_serde_adjacently_tagged_named_fields.Bar"
             }
           },
           "required": [

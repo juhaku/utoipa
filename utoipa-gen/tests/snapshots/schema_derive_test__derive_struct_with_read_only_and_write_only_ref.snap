@@ -1,16 +1,15 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: user
-snapshot_kind: text
 ---
 {
   "properties": {
     "address": {
-      "$ref": "#/components/schemas/Inner",
+      "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_read_only_and_write_only_ref.Inner",
       "readOnly": true
     },
     "secret": {
-      "$ref": "#/components/schemas/Inner",
+      "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_read_only_and_write_only_ref.Inner",
       "writeOnly": true
     }
   },

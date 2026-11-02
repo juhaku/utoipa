@@ -1,11 +1,10 @@
 ---
 source: utoipa-gen/tests/openapi_derive.rs
 expression: schemas
-snapshot_kind: text
 ---
 {
   "schemas": {
-    "Account": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Account": {
       "properties": {
         "id": {
           "format": "int32",
@@ -17,7 +16,7 @@ snapshot_kind: text
       ],
       "type": "object"
     },
-    "Boo": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Boo": {
       "properties": {
         "boo": {
           "type": "boolean"
@@ -28,7 +27,7 @@ snapshot_kind: text
       ],
       "type": "object"
     },
-    "Element_String": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Element_String": {
       "oneOf": [
         {
           "properties": {
@@ -57,7 +56,7 @@ snapshot_kind: text
         }
       ]
     },
-    "Element_Yeah": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Element_openapi_derive.openapi_schemas_resolve_schema_references.Yeah": {
       "oneOf": [
         {
           "properties": {
@@ -67,7 +66,7 @@ snapshot_kind: text
                   "items": {
                     "oneOf": [
                       {
-                        "$ref": "#/components/schemas/Account"
+                        "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Account"
                       },
                       {
                         "type": "null"
@@ -77,7 +76,7 @@ snapshot_kind: text
                   "type": "array"
                 },
                 "foo_bar": {
-                  "$ref": "#/components/schemas/Foobar"
+                  "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Foobar"
                 },
                 "name": {
                   "type": "string"
@@ -105,7 +104,7 @@ snapshot_kind: text
                     "items": {
                       "oneOf": [
                         {
-                          "$ref": "#/components/schemas/Account"
+                          "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Account"
                         },
                         {
                           "type": "null"
@@ -115,7 +114,7 @@ snapshot_kind: text
                     "type": "array"
                   },
                   "foo_bar": {
-                    "$ref": "#/components/schemas/Foobar"
+                    "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Foobar"
                   },
                   "name": {
                     "type": "string"
@@ -138,7 +137,7 @@ snapshot_kind: text
         }
       ]
     },
-    "EnumMixedContent": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.EnumMixedContent": {
       "oneOf": [
         {
           "enum": [
@@ -149,7 +148,7 @@ snapshot_kind: text
         {
           "properties": {
             "One": {
-              "$ref": "#/components/schemas/Foobar"
+              "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Foobar"
             }
           },
           "required": [
@@ -165,17 +164,17 @@ snapshot_kind: text
                   "type": "boolean"
                 },
                 "foo": {
-                  "$ref": "#/components/schemas/ThisIsNone"
+                  "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.ThisIsNone"
                 },
                 "int": {
                   "format": "int32",
                   "type": "integer"
                 },
                 "value": {
-                  "$ref": "#/components/schemas/Account"
+                  "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Account"
                 },
                 "value2": {
-                  "$ref": "#/components/schemas/Boo"
+                  "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Boo"
                 }
               },
               "required": [
@@ -197,7 +196,7 @@ snapshot_kind: text
           "properties": {
             "Many": {
               "items": {
-                "$ref": "#/components/schemas/Person"
+                "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Person"
               },
               "type": "array"
             }
@@ -209,13 +208,13 @@ snapshot_kind: text
         }
       ]
     },
-    "Foob": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Foob": {
       "properties": {
         "item": {
-          "$ref": "#/components/schemas/Element_String"
+          "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Element_String"
         },
         "item2": {
-          "$ref": "#/components/schemas/Element_Yeah"
+          "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Element_openapi_derive.openapi_schemas_resolve_schema_references.Yeah"
         }
       },
       "required": [
@@ -224,22 +223,22 @@ snapshot_kind: text
       ],
       "type": "object"
     },
-    "Foobar": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Foobar": {
       "default": null
     },
-    "OneOfOne": {
-      "$ref": "#/components/schemas/Person"
+    "openapi_derive.openapi_schemas_resolve_schema_references.OneOfOne": {
+      "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Person"
     },
-    "OneOfYeah": {
-      "$ref": "#/components/schemas/Yeah"
+    "openapi_derive.openapi_schemas_resolve_schema_references.OneOfYeah": {
+      "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Yeah"
     },
-    "Person": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Person": {
       "properties": {
         "accounts": {
           "items": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/Account"
+                "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Account"
               },
               {
                 "type": "null"
@@ -249,7 +248,7 @@ snapshot_kind: text
           "type": "array"
         },
         "foo_bar": {
-          "$ref": "#/components/schemas/Foobar"
+          "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Foobar"
         },
         "name": {
           "type": "string"
@@ -262,16 +261,16 @@ snapshot_kind: text
       ],
       "type": "object"
     },
-    "ThisIsNone": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.ThisIsNone": {
       "default": null
     },
-    "Yeah": {
+    "openapi_derive.openapi_schemas_resolve_schema_references.Yeah": {
       "properties": {
         "accounts": {
           "items": {
             "oneOf": [
               {
-                "$ref": "#/components/schemas/Account"
+                "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Account"
               },
               {
                 "type": "null"
@@ -281,7 +280,7 @@ snapshot_kind: text
           "type": "array"
         },
         "foo_bar": {
-          "$ref": "#/components/schemas/Foobar"
+          "$ref": "#/components/schemas/openapi_derive.openapi_schemas_resolve_schema_references.Foobar"
         },
         "name": {
           "type": "string"

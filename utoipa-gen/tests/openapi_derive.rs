@@ -182,7 +182,7 @@ fn derive_openapi_with_components_in_different_module() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let todo = doc.pointer("/components/schemas/Todo").unwrap();
+    let todo = doc.pointer("/components/schemas/openapi_derive.derive_openapi_with_components_in_different_module.custom.Todo").unwrap();
 
     assert_ne!(
         todo,
@@ -221,7 +221,7 @@ fn derive_openapi_with_servers() {
     #[openapi(
         servers(
             (url = "http://localhost:8989", description = "this is description"),
-            (url = "http://api.{username}:{port}", description = "remote api", 
+            (url = "http://api.{username}:{port}", description = "remote api",
                 variables(
                     ("username" = (default = "demo", description = "Default username for API")),
                     ("port" = (default = "8080", enum_values("8080", "5000", "3030"), description = "Supported ports for the API"))
@@ -324,7 +324,9 @@ fn derive_openapi_with_generic_schema() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let schema = doc.pointer("/components/schemas/Pet_Value");
+    let schema = doc.pointer(
+        "/components/schemas/openapi_derive.derive_openapi_with_generic_schema.Pet_openapi_derive.derive_openapi_with_generic_schema.Value",
+    );
 
     assert_json_snapshot!(schema);
 }
@@ -347,7 +349,7 @@ fn derive_openapi_with_generic_schema_with_as() {
     struct ApiDoc;
 
     let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
-    let schema = doc.pointer("/components/schemas/api.models.Pet_Value");
+    let schema = doc.pointer("/components/schemas/api.models.Pet_openapi_derive.derive_openapi_with_generic_schema_with_as.Value");
 
     assert_json_snapshot!(schema);
 }

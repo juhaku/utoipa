@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
-assertion_line: 167
 expression: api
 ---
 {
@@ -12,7 +11,7 @@ expression: api
   "paths": {},
   "components": {
     "schemas": {
-      "Bar_String": {
+      "schema_generics.schema_with_non_generic_root.Bar_String": {
         "type": "object",
         "required": [
           "value"
@@ -23,7 +22,7 @@ expression: api
           }
         }
       },
-      "Bar_i32": {
+      "schema_generics.schema_with_non_generic_root.Bar_i32": {
         "type": "object",
         "required": [
           "value"
@@ -35,29 +34,29 @@ expression: api
           }
         }
       },
-      "Foo_String": {
+      "schema_generics.schema_with_non_generic_root.Foo_String": {
         "type": "object",
         "required": [
           "bar"
         ],
         "properties": {
           "bar": {
-            "$ref": "#/components/schemas/Bar_String"
+            "$ref": "#/components/schemas/schema_generics.schema_with_non_generic_root.Bar_String"
           }
         }
       },
-      "Foo_i32": {
+      "schema_generics.schema_with_non_generic_root.Foo_i32": {
         "type": "object",
         "required": [
           "bar"
         ],
         "properties": {
           "bar": {
-            "$ref": "#/components/schemas/Bar_i32"
+            "$ref": "#/components/schemas/schema_generics.schema_with_non_generic_root.Bar_i32"
           }
         }
       },
-      "Top": {
+      "schema_generics.schema_with_non_generic_root.Top": {
         "type": "object",
         "required": [
           "foo1",
@@ -65,10 +64,10 @@ expression: api
         ],
         "properties": {
           "foo1": {
-            "$ref": "#/components/schemas/Foo_String"
+            "$ref": "#/components/schemas/schema_generics.schema_with_non_generic_root.Foo_String"
           },
           "foo2": {
-            "$ref": "#/components/schemas/Foo_i32"
+            "$ref": "#/components/schemas/schema_generics.schema_with_non_generic_root.Foo_i32"
           }
         }
       }
