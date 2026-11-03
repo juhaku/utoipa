@@ -1,10 +1,15 @@
 # Changelog - utoipa-scalar
 
-## Unreleased
+## 0.4.0 - Sep 23 2025
 
 ### Added
 
 * Add `Scalar::title` for customizing the HTML page title (https://github.com/juhaku/utoipa/pull/1515)
+
+### Changed 
+
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
+* Update utoipa to version 6.0.0
 
 ## 0.3.0 - Thu 16 2025
 

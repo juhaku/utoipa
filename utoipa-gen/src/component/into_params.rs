@@ -4,7 +4,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse::Parse, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Generics, Ident,
+    GenericParam, Generics, Ident,
 };
 
 use crate::{
@@ -25,9 +25,9 @@ use crate::{
         FieldRename,
     },
     doc_comment::CommentAttributes,
-    parse_utils::LitBoolOrExprPath,
+    parse_utils::LitStrOrExpr,
     token_stream::{quote_diagnostics, Diagnostics, ToTokensDiagnostics},
-    Array, OptionExt, Required,
+    OptionExt, Required,
 };
 
 use super::{
@@ -155,18 +155,35 @@ impl ToTokensDiagnostics for IntoParams {
 
                 Ok(param.to_token_stream())
             })
-            .collect::<Result<Array<TokenStream>, Diagnostics>>()?;
+            .collect::<Result<Vec<TokenStream>, Diagnostics>>()?;
 
+        let generic_schemas = get_generic_schemas(&self.generics);
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
-                    #params.into_iter().filter(Option::is_some).flatten().collect()
+                    let mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::Schema>> = vec![ #(#generic_schemas),* ];
+                    vec![#(#params),*].into_iter().filter(Option::is_some).flatten().collect()
                 }
             }
         });
 
         Ok(())
     }
+}
+
+fn get_generic_schemas(generics: &Generics) -> Vec<TokenStream> {
+    generics
+        .params
+        .iter()
+        .filter_map(|p| {
+            if let GenericParam::Type(tp) = p {
+                let ident = tp.ident.clone();
+                Some(quote! { <#ident as utoipa::PartialSchema>::schema() })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>()
 }
 
 fn parse_field_features(field: &Field) -> Result<Vec<Feature>, Diagnostics> {
@@ -188,7 +205,7 @@ fn parse_field_features(field: &Field) -> Result<Vec<Feature>, Diagnostics> {
 impl IntoParams {
     fn get_struct_fields(
         &self,
-        field_names: &Option<&Vec<String>>,
+        field_names: &Option<&Vec<LitStrOrExpr>>,
     ) -> Result<impl Iterator<Item = &Field>, Diagnostics> {
         let ident = &self.ident;
         match &self.data {
@@ -223,7 +240,7 @@ impl IntoParams {
     fn validate_unnamed_field_names(
         &self,
         unnamed_fields: &Punctuated<Field, Comma>,
-        field_names: &Option<&Vec<String>>,
+        field_names: &Option<&Vec<LitStrOrExpr>>,
     ) -> Option<Diagnostics> {
         let ident = &self.ident;
         match field_names {
@@ -262,7 +279,7 @@ pub struct FieldParamContainerAttributes<'a> {
     /// See [`IntoParamsAttr::style`].
     style: &'a Option<Feature>,
     /// See [`IntoParamsAttr::names`]. The name that applies to this field.
-    name: Option<&'a String>,
+    name: Option<&'a LitStrOrExpr>,
     /// See [`IntoParamsAttr::parameter_in`].
     parameter_in: &'a Option<Feature>,
     /// Custom rename all if serde attribute is not present.
@@ -326,25 +343,21 @@ impl Param {
         let mut tokens = TokenStream::new();
         let field_serde_params = &field_serde_params;
         let ident = &field.ident;
-        let mut name = &*ident
+        let mut name = ident
             .as_ref()
-            .map(|ident| ident.to_string())
+            .map(|ident| LitStrOrExpr::from(ident.to_string()))
             .or_else(|| container_attributes.name.cloned())
             .ok_or_else(||
                 Diagnostics::with_span(field.span(), "No name specified for unnamed field.")
                     .help("Try adding #[into_params(names(...))] container attribute to specify the name for this field")
             )?;
 
-        if name.starts_with("r#") {
-            name = &name[2..];
-        }
-
         let (schema_features, mut param_features) =
             Param::resolve_field_features(field_features, &container_attributes)
                 .map_err(Diagnostics::from)?;
 
         let ignore = pop_feature!(param_features => Feature::Ignore(_));
-        let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(b)))) if b.value());
+        let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(b))) if b.value());
         if should_always_ignore {
             return Ok(Self {
                 tokens: quote! { None },
@@ -360,8 +373,22 @@ impl Param {
         let rename_all = serde_container.rename_all.as_ref().or(container_attributes
             .rename_all
             .map(|rename_all| rename_all.as_rename_rule()));
-        let name = super::rename::<FieldRename>(name, rename_to, rename_all)
-            .unwrap_or(Cow::Borrowed(name));
+
+        if let LitStrOrExpr::LitStr(s) = &name {
+            let lit_value = s.value();
+            let value = if lit_value.starts_with("r#") {
+                Cow::Borrowed(&lit_value[2..])
+            } else {
+                Cow::Borrowed(lit_value.as_str())
+            };
+
+            name = LitStrOrExpr::from(
+                super::rename::<FieldRename>(&value, rename_to, rename_all)
+                    .unwrap_or(value)
+                    .into_owned(),
+            );
+        }
+
         let type_tree = TypeTree::from_type(&field.ty)?;
 
         tokens.extend(quote! { utoipa::openapi::path::ParameterBuilder::new()
@@ -402,8 +429,9 @@ impl Param {
 
             let required: Option<features::attributes::Required> =
                 pop_feature!(param_features => Feature::Required(_)).into_inner();
-            let component_required =
-                !component.is_option() && super::is_required(field_serde_params, serde_container);
+            let component_required = (!component.is_option()
+                || field_serde_params.deserialize_with)
+                && super::is_required(field_serde_params, serde_container);
 
             let required = match (required, component_required) {
                 (Some(required_feature), _) => Into::<Required>::into(required_feature.is_true()),
@@ -433,25 +461,12 @@ impl Param {
         }
 
         let tokens = match ignore {
-            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::LitBool(bool)))) => {
+            Some(Feature::Ignore(Ignore(bool))) => {
                 quote_spanned! {
                     bool.span() => if #bool {
                         None
                     } else {
                         Some(#tokens)
-                    }
-                }
-            }
-            Some(Feature::Ignore(Ignore(LitBoolOrExprPath::ExprPath(path)))) => {
-                quote_spanned! {
-                    path.span() => {
-                        utoipa::__dev::warn_deprecated_ignore_fn_pattern();
-
-                        if #path() {
-                            None
-                        } else {
-                            Some(#tokens)
-                        }
                     }
                 }
             }

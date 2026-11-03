@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/path_derive.rs
+assertion_line: 1600
 expression: "&paths"
-snapshot_kind: text
 ---
 {
   "/test-links": {
@@ -12,15 +12,15 @@ snapshot_kind: text
           "description": "success response",
           "links": {
             "getBar": {
-              "operation_ref": "this is ref"
+              "operationRef": "this is ref"
             },
             "getFoo": {
-              "operation_id": "test_links",
+              "operationId": "test_links",
               "parameters": {
                 "json_value": 1,
                 "key": "value"
               },
-              "request_body": "this is body",
+              "requestBody": "this is body",
               "server": {
                 "url": "http://localhost"
               }

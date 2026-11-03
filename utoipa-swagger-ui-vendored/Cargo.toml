@@ -3,12 +3,15 @@ name = "utoipa-swagger-ui-vendored"
 description = "Vendored Swagger UI for utoipa"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 keywords = ["swagger-ui", "vendored", "openapi", "documentation"]
 repository = "https://github.com/juhaku/utoipa"
 categories = ["web-programming"]
 authors = ["Juha Kukkonen <juha7kukkonen@gmail.com>"]
 rust-version.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]

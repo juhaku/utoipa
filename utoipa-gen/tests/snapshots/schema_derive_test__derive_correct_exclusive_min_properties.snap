@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: schema
+---
+{
+  "minProperties": 1,
+  "properties": {
+    "property_1": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "property_2": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "type": "object"
+}
