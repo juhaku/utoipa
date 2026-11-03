@@ -21,6 +21,7 @@ test *crates='utoipa utoipa-gen utoipa-swagger-ui utoipa-redoc utoipa-rapidoc ut
 
         if [[ "$crate" == "utoipa" ]]; then
             $cargo $cargo_command -p utoipa --features openapi_extensions,preserve_order,preserve_path_order,debug,macros
+            $cargo $cargo_command -p utoipa --features openapi_extensions,preserve_order,preserve_path_order,debug,macros,non_strict_integers
         elif [[ "$crate" == "utoipa-gen" ]]; then
             $cargo $cargo_command -p utoipa-gen --features utoipa/actix_extras,chrono,decimal,utoipa/uuid,uuid,utoipa/ulid,ulid,utoipa/url,url,utoipa/time,time,jiff_0_2,utoipa/repr,utoipa/smallvec,smallvec,rc_schema,utoipa/rc_schema,utoipa/macros
             $cargo $cargo_command -p utoipa-gen --test schema_derive_test --features decimal_float,utoipa/macros
@@ -126,3 +127,6 @@ validate-examples:
     done
 
     echo "All examples are valid!"
+
+watch-test *crates='utoipa utoipa-gen utoipa-swagger-ui utoipa-axum utoipa-actix-web utoipa-rapidoc':
+    bacon nextest-just -- {{ crates }}
