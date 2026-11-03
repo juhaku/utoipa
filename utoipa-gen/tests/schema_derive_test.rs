@@ -105,6 +105,34 @@ fn derive_flattened_map_ref_property() {
 }
 
 #[test]
+fn derive_flattened_map_ref_property_collects_recursive_schema() {
+    #![allow(unused)]
+
+    #[derive(ToSchema)]
+    struct Bar {
+        value: i64,
+    }
+
+    #[derive(ToSchema)]
+    struct Foo {
+        #[serde(flatten)]
+        data: HashMap<String, Bar>,
+    }
+
+    #[derive(OpenApi)]
+    #[openapi(components(schemas(Foo)))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+
+    assert_value! { doc =>
+        "components.schemas.Foo.additionalProperties.$ref" = r##""#/components/schemas/Bar""##, "Foo flattened map additional properties ref"
+        "components.schemas.Bar.type" = r#""object""#, "Bar recursively discovered type"
+        "components.schemas.Bar.properties.value.format" = r#""int64""#, "Bar value format"
+    };
+}
+
+#[test]
 fn derive_enum_with_additional_properties_success() {
     let mode = api_doc! {
         #[schema(default = "Mode1", example = "Mode2")]
@@ -162,6 +190,27 @@ fn derive_enum_with_with_custom_default_fn_success() {
 
 fn mode_custom_default_fn() -> String {
     "Mode2".to_string()
+}
+
+#[test]
+fn derive_struct_with_extensions_success() {
+    let book = api_doc!(
+        struct Book {
+            #[schema(
+                extensions(
+                    ("x-extension-1" = json!({ "type": "extension1" })),
+                    ("x-extension-2" = json!({ "type": "extension2", "value": 2 }))
+                )
+            )]
+            name: String,
+        }
+    );
+
+    assert_value! {book=>
+        "properties.name.x-extension-1.type" = r#""extension1""#, "Book extension 1"
+        "properties.name.x-extension-2.type" = r#""extension2""#, "Book extension 2"
+        "properties.name.x-extension-2.value" = r#"2"#, "Book extension 2 value"
+    }
 }
 
 #[test]
@@ -1550,6 +1599,24 @@ fn derive_struct_with_nullable_and_required() {
 }
 
 #[test]
+fn derive_struct_option_with_deserialize_with_is_required() {
+    use serde::Deserialize;
+
+    let review = api_doc! {
+        #[derive(Deserialize)]
+        struct Review {
+            #[serde(deserialize_with = "Option::deserialize")]
+            app: Option<String>,
+            #[serde(default, deserialize_with = "Option::deserialize")]
+            label: Option<String>,
+            note: Option<String>,
+        }
+    };
+
+    assert_json_snapshot!(review);
+}
+
+#[test]
 fn derive_enum_with_inline_variant() {
     #[allow(dead_code)]
     #[derive(ToSchema)]
@@ -2364,6 +2431,34 @@ fn derive_struct_with_no_additional_properties() {
 }
 
 #[test]
+fn derive_internally_tagged_enum_with_no_additional_properties() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(tag = "kind", deny_unknown_fields)]
+        enum MyValue {
+            Empty {},
+            Field { field: String },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_externally_tagged_enum_with_no_additional_properties() {
+    let value = api_doc! {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        enum MyValue {
+            Empty {},
+            Field { field: String },
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 #[cfg(feature = "repr")]
 fn derive_schema_for_repr_enum() {
     let value = api_doc! {
@@ -3161,27 +3256,6 @@ fn derive_schema_with_ignore_eq_false_field() {
 }
 
 #[test]
-fn derive_schema_with_ignore_eq_call_field() {
-    #![allow(unused)]
-
-    let value = api_doc! {
-        struct SchemaIgnoredField {
-            value: String,
-            #[schema(ignore = Self::ignore)]
-            this_is_not_private: String,
-        }
-
-        impl SchemaIgnoredField {
-            fn ignore() -> bool {
-                false
-            }
-        }
-    };
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
 fn derive_schema_with_ignore_struct() {
     #![allow(unused)]
 
@@ -3209,30 +3283,6 @@ fn derive_schema_with_ignore_enum() {
             value: String,
             #[schema(ignore)]
             __this_is_private: Private,
-        }
-    };
-
-    assert_json_snapshot!(value);
-}
-
-#[test]
-fn derive_schema_with_ignore_fn_struct() {
-    #![allow(unused)]
-
-    fn always_true() -> bool {
-        true
-    };
-
-    #[derive(ToSchema)]
-    struct PrivateOrPublic {
-        name: &'static str,
-    }
-
-    let value = api_doc! {
-        struct SchemaIgnoredField {
-            value: String,
-            #[schema(ignore = always_true)]
-            private_or_public: PrivateOrPublic,
         }
     };
 
@@ -3646,6 +3696,67 @@ fn derive_inline_option_ref_with_nullable_false_and_default() {
 
             // For comparison - default Option behavior with implicit nullable = true
             default_optional_ref: Option<RefType>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
+
+// Smoke test: deriving `ToSchema` on a wide struct keeps compiling and produces
+// a valid schema. Related to the large stack array fix (juhaku/utoipa#1454).
+#[test]
+fn derive_schema_with_many_fields_compiles() {
+    #![allow(unused)]
+
+    macro_rules! wide_struct {
+        ($name:ident; $($field:ident),+ $(,)?) => {
+            #[derive(ToSchema)]
+            struct $name {
+                $($field: String,)+
+            }
+        };
+    }
+
+    wide_struct!(WideStruct;
+        f000, f001, f002, f003, f004, f005, f006, f007, f008, f009,
+        f010, f011, f012, f013, f014, f015, f016, f017, f018, f019,
+        f020, f021, f022, f023, f024, f025, f026, f027, f028, f029,
+        f030, f031, f032, f033, f034, f035, f036, f037, f038, f039,
+        f040, f041, f042, f043, f044, f045, f046, f047, f048, f049,
+        f050, f051, f052, f053, f054, f055, f056, f057, f058, f059,
+        f060, f061, f062, f063, f064, f065, f066, f067, f068, f069,
+        f070, f071, f072, f073, f074, f075, f076, f077, f078, f079,
+        f080, f081, f082, f083, f084, f085, f086, f087, f088, f089,
+        f090, f091, f092, f093, f094, f095, f096, f097, f098, f099,
+    );
+
+    use utoipa::PartialSchema;
+    let schema = <WideStruct as PartialSchema>::schema();
+    serde_json::to_value(schema).expect("wide schema is JSON serializable");
+}
+
+#[test]
+fn derive_correct_exclusive_min_properties() {
+    let schema = api_doc! {
+        #[schema(min_properties = 1)]
+        struct Foo {
+            property_1: Option<String>,
+            property_2: Option<String>,
+        }
+    };
+
+    assert_json_snapshot!(schema);
+}
+
+#[test]
+fn derive_struct_with_field_rename_expr() {
+    const STRUCT_TITLE: &str = "Post Title";
+
+    let schema = api_doc! {
+        #[schema(title = STRUCT_TITLE)]
+        struct Post {
+            id: i64,
+            description: String,
         }
     };
 

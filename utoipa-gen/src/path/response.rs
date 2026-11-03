@@ -267,7 +267,7 @@ impl Parse for ResponseValue<'_> {
 
 impl<'r> ResponseValue<'r> {
     const EXPECTED_ATTRIBUTES: &'static str =
-        "description, body, content_type, headers, example, examples";
+        "description, body, content_type, item_schema, headers, example, examples";
 
     fn parse_named_attributes(&mut self, input: ParseStream, attribute: &Ident) -> syn::Result<()> {
         let attribute_name = &*attribute.to_string();
@@ -441,6 +441,7 @@ impl ToTokensDiagnostics for ResponseTuple<'_> {
 
                 for media_type in value.content.iter().filter(|media_type| {
                     !(matches!(media_type.schema, Schema::Default(DefaultSchema::None))
+                        && matches!(media_type.item_schema, Schema::Default(DefaultSchema::None))
                         && media_type.content_type.is_none())
                 }) {
                     let default_content_type = media_type.schema.get_default_content_type()?;

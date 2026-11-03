@@ -1,0 +1,124 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: doc
+---
+{
+  "components": {
+    "responses": {
+      "ExtraResponse": {
+        "description": "extra"
+      },
+      "SharedResponse": {
+        "description": "parent"
+      }
+    },
+    "schemas": {
+      "MergedOnly": {
+        "properties": {
+          "value": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
+      "ParentOnly": {
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
+      "Shared": {
+        "properties": {
+          "parent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "parent"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "contact": {
+      "email": "juha7kukkonen@gmail.com",
+      "name": "Juha Kukkonen"
+    },
+    "description": "Code generation implementation for utoipa",
+    "license": {
+      "identifier": "MIT OR Apache-2.0",
+      "name": "MIT OR Apache-2.0"
+    },
+    "title": "parent title",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/merged-only": {
+      "get": {
+        "operationId": "merged_only",
+        "responses": {},
+        "tags": [
+          "from-merge"
+        ]
+      }
+    },
+    "/parent-only": {
+      "post": {
+        "operationId": "parent_only",
+        "responses": {},
+        "tags": [
+          "parent"
+        ]
+      }
+    },
+    "/shared": {
+      "get": {
+        "operationId": "parent_shared",
+        "responses": {},
+        "tags": [
+          "parent"
+        ]
+      },
+      "post": {
+        "operationId": "merged_shared_post",
+        "responses": {},
+        "tags": [
+          "from-merge"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "parent_key": [
+        "read"
+      ]
+    },
+    {
+      "merged_key": [
+        "write"
+      ]
+    }
+  ],
+  "tags": [
+    {
+      "description": "parent tag",
+      "name": "parent"
+    },
+    {
+      "description": "merged tag",
+      "name": "merged"
+    }
+  ]
+}

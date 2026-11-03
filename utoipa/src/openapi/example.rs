@@ -45,6 +45,14 @@ builder! {
         #[serde(skip_serializing_if = "Option::is_none")]
         pub value: Option<serde_json::Value>,
 
+        /// Embedded example value in the same form as data validated by a schema.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub data_value: Option<serde_json::Value>,
+
+        /// String representation of the example value after serialization.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub serialized_value: Option<String>,
+
         /// An URI that points to a literal example value. [`Example::external_value`] provides the
         /// capability to references an example that cannot be easily included in JSON or YAML.
         /// [`Example::value`] and [`Example::external_value`] are mutually exclusive.
@@ -81,6 +89,20 @@ impl ExampleBuilder {
     /// are mutually exclusive.
     pub fn value(mut self, value: Option<serde_json::Value>) -> Self {
         set_value!(self value value)
+    }
+
+    /// Add or change embedded data value for the [`Example`].
+    pub fn data_value(mut self, data_value: Option<serde_json::Value>) -> Self {
+        set_value!(self data_value data_value)
+    }
+
+    /// Add or change serialized value for the [`Example`].
+    pub fn serialized_value<S: Into<String>>(mut self, serialized_value: Option<S>) -> Self {
+        set_value!(
+            self
+            serialized_value
+            serialized_value.map(|serialized_value| serialized_value.into())
+        )
     }
 
     /// Add or change an URI that points to a literal example value. [`Example::external_value`]

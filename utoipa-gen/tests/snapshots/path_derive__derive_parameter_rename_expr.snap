@@ -1,0 +1,14 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+---
+[
+  {
+    "in": "path",
+    "name": "renamed_field",
+    "required": true,
+    "schema": {
+      "default": null
+    }
+  }
+]

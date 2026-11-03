@@ -1,0 +1,31 @@
+---
+source: utoipa-gen/tests/openapi_derive.rs
+expression: paths
+---
+{
+  "/api/v1/one": {
+    "get": {
+      "operationId": "api_one_handler",
+      "responses": {},
+      "tags": [
+        "one"
+      ]
+    }
+  },
+  "/api/v1/three": {
+    "get": {
+      "operationId": "api_three_handler",
+      "responses": {},
+      "tags": []
+    }
+  },
+  "/api/v1/two": {
+    "get": {
+      "operationId": "api_two_handler",
+      "responses": {},
+      "tags": [
+        "two"
+      ]
+    }
+  }
+}

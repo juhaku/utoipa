@@ -7,9 +7,9 @@ use crate::{
     component::features::{
         attributes::{
             AdditionalProperties, As, Bound, ContentEncoding, ContentMediaType, Deprecated,
-            Description, Discriminator, Example, Examples, Format, Ignore, Inline, NoRecursion,
-            Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title, ValueType,
-            WriteOnly, XmlAttr,
+            Description, Discriminator, Example, Examples, Extensions, Format, Ignore, Inline,
+            NoRecursion, Nullable, ReadOnly, Rename, RenameAll, Required, SchemaWith, Title,
+            ValueType, WriteOnly, XmlAttr,
         },
         impl_into_inner, impl_merge, parse_features,
         validation::{
@@ -155,7 +155,8 @@ impl Parse for NamedFieldFeatures {
             ContentEncoding,
             ContentMediaType,
             Ignore,
-            NoRecursion
+            NoRecursion,
+            Extensions
         )))
     }
 }
