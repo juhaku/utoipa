@@ -161,8 +161,11 @@ impl ToTokensDiagnostics for IntoParams {
         tokens.extend(quote! {
             impl #impl_generics utoipa::IntoParams for #ident #ty_generics #where_clause {
                 fn into_params(parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>) -> Vec<utoipa::openapi::path::Parameter> {
+                    // Generate generic schemas before collecting regular and flattened parameters in field order.
                     let mut generics: Vec<utoipa::openapi::RefOr<utoipa::openapi::Schema>> = vec![ #(#generic_schemas),* ];
-                    vec![#(#params),*].into_iter().filter(Option::is_some).flatten().collect()
+                    let mut parameters = Vec::<utoipa::openapi::path::Parameter>::new();
+                    #( parameters.extend(#params); )*
+                    parameters
                 }
             }
         });
@@ -342,6 +345,22 @@ impl Param {
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
         let field_serde_params = &field_serde_params;
+        let mut field_features = field_features;
+
+        if field_serde_params.flatten {
+            let ignore = pop_feature!(field_features => Feature::Ignore(_));
+            let schema_with =
+                pop_feature!(field_features => Feature::SchemaWith(_) as Option<SchemaWith>);
+            return Ok(Self {
+                tokens: into_params_flatten_tokens(
+                    field,
+                    ignore,
+                    schema_with,
+                    &container_attributes,
+                ),
+            });
+        }
+
         let ident = &field.ident;
         let mut name = ident
             .as_ref()
@@ -360,7 +379,7 @@ impl Param {
         let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(b))) if b.value());
         if should_always_ignore {
             return Ok(Self {
-                tokens: quote! { None },
+                tokens: quote! { Vec::<utoipa::openapi::path::Parameter>::new() },
             });
         }
         let rename = pop_feature!(param_features => Feature::Rename(_) as Option<Rename>)
@@ -464,13 +483,13 @@ impl Param {
             Some(Feature::Ignore(Ignore(bool))) => {
                 quote_spanned! {
                     bool.span() => if #bool {
-                        None
+                        Vec::<utoipa::openapi::path::Parameter>::new()
                     } else {
-                        Some(#tokens)
+                        vec![#tokens]
                     }
                 }
             }
-            _ => quote! { Some(#tokens) },
+            _ => quote! { vec![#tokens] },
         };
 
         Ok(Self { tokens })
@@ -525,6 +544,44 @@ impl Param {
                 (schema_features, param_features)
             },
         ))
+    }
+}
+
+fn into_params_flatten_tokens(
+    field: &Field,
+    ignore: Option<Feature>,
+    schema_with: Option<SchemaWith>,
+    container_attributes: &FieldParamContainerAttributes<'_>,
+) -> TokenStream {
+    let should_always_ignore = matches!(&ignore, Some(Feature::Ignore(Ignore(b))) if b.value());
+    if should_always_ignore {
+        return quote! { Vec::<utoipa::openapi::path::Parameter>::new() };
+    }
+
+    let field_ty = &field.ty;
+    let parameter_in_provider = match container_attributes.parameter_in {
+        Some(Feature::ParameterIn(parameter_in)) => quote! { || Some(#parameter_in) },
+        _ => quote! { || parameter_in_provider() },
+    };
+    let tokens = if let Some(schema_with) = schema_with {
+        schema_with.to_token_stream_with_args(parameter_in_provider)
+    } else {
+        quote_spanned! {
+            field_ty.span() => <#field_ty as utoipa::IntoParams>::into_params(#parameter_in_provider)
+        }
+    };
+
+    match ignore {
+        Some(Feature::Ignore(Ignore(bool))) => {
+            quote_spanned! {
+                bool.span() => if #bool {
+                    Vec::<utoipa::openapi::path::Parameter>::new()
+                } else {
+                    #tokens
+                }
+            }
+        }
+        _ => tokens,
     }
 }
 

@@ -792,6 +792,165 @@ fn derive_path_params_intoparams() {
 }
 
 #[test]
+fn derive_path_params_intoparams_with_serde_flatten() {
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct PaginationParams {
+        /// Page number.
+        page: Option<u32>,
+        /// Page size.
+        size: Option<u32>,
+    }
+
+    #[derive(serde::Deserialize)]
+    #[allow(unused)]
+    struct IgnoredParams {
+        debug: String,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct UserListQuery {
+        /// Name keyword.
+        #[param(example = "")]
+        name: Option<String>,
+        #[serde(flatten)]
+        pagination: PaginationParams,
+        /// Whether account is active.
+        active: Option<bool>,
+        #[serde(flatten)]
+        #[param(ignore)]
+        ignored: IgnoredParams,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/users",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(UserListQuery)
+    )]
+    #[allow(unused)]
+    fn list(params: UserListQuery) -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/users"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
+fn derive_path_params_with_generic_field_and_serde_flatten() {
+    #![allow(dead_code)]
+
+    #[derive(serde::Deserialize, ToSchema)]
+    enum Animal {
+        Bird,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    struct PaginationParams {
+        page: u32,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct QueryParams<AnimalType: ToSchema> {
+        animal: AnimalType,
+        #[serde(flatten)]
+        pagination: PaginationParams,
+        limit: Option<u32>,
+    }
+
+    #[utoipa::path(get, path = "/animals", params(QueryParams<Animal>))]
+    fn list() {}
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/animals"
+    };
+    let parameters = operation["parameters"].as_array().unwrap();
+    let names: Vec<_> = parameters
+        .iter()
+        .map(|parameter| parameter["name"].as_str().unwrap())
+        .collect();
+
+    assert_eq!(names, ["animal", "page", "limit"]);
+    assert!(parameters
+        .iter()
+        .all(|parameter| parameter["in"] == "query"));
+}
+
+#[test]
+fn derive_path_params_intoparams_with_flatten_schema_with() {
+    fn cursor_params(
+        parameter_in_provider: impl Fn() -> Option<utoipa::openapi::path::ParameterIn>,
+    ) -> Vec<utoipa::openapi::path::Parameter> {
+        vec![utoipa::openapi::path::ParameterBuilder::new()
+            .name("cursor")
+            .parameter_in(parameter_in_provider().unwrap_or_default())
+            .required(utoipa::openapi::Required::False)
+            .schema(Some(
+                ObjectBuilder::new().schema_type(utoipa::openapi::Type::String),
+            ))
+            .build()]
+    }
+
+    #[derive(serde::Deserialize)]
+    #[allow(unused)]
+    struct CursorParams {
+        cursor: String,
+    }
+
+    #[derive(serde::Deserialize, IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct UserListQuery {
+        /// Search text.
+        query: Option<String>,
+        #[serde(flatten)]
+        #[param(schema_with = cursor_params)]
+        pagination: CursorParams,
+        /// Result limit.
+        limit: Option<u32>,
+    }
+
+    #[utoipa::path(
+        get,
+        path = "/users",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(UserListQuery)
+    )]
+    #[allow(unused)]
+    fn list(params: UserListQuery) -> String {
+        "".to_string()
+    }
+
+    let operation: Value = test_api_fn_doc! {
+        list,
+        operation: get,
+        path: "/users"
+    };
+
+    let parameters = operation.get("parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
 fn derive_path_params_into_params_with_value_type() {
     use utoipa::OpenApi;
 
