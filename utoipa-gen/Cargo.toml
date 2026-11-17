@@ -52,6 +52,7 @@ bigdecimal = { version = "0.4", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 time = { workspace = true, features = ["serde-human-readable"] }
 jiff = { version = "0.2", features = ["serde"] }
+jiff_1 = { package = "jiff", version = "1", features = ["serde"] }
 serde_with = "3.14"
 insta = { version = "1.47", features = ["json"] }
 
@@ -73,6 +74,7 @@ url = ["dep:url"]
 axum_extras = ["regex", "syn/extra-traits"]
 time = []
 jiff_0_2 = []
+jiff_1 = []
 smallvec = []
 repr = []
 indexmap = []

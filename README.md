@@ -85,6 +85,7 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
   `date` format and `Duration` will not have any format. To override default `string` representation users have to use `value_type` attribute
   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
 - **`jiff_0_2`** Add support for [jiff 0.2](https://crates.io/crates/jiff) `Timestamp`, `Zoned`, and `civil::Date` types.
+- **`jiff_1`** Add support for [jiff 1](https://crates.io/crates/jiff) `Timestamp`, `ZonedDateTime`, and `civil::Date` types.
   By default these types are parsed as `string`. `Timestamp` and `Zoned` will use `date-time` format. `civil::Date` will use
   `date` format. To override default `string` representation users have to use `value_type` attribute
   to override the type. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html) for more details.
