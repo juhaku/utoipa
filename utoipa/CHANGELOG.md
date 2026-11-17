@@ -7,7 +7,7 @@ to look into changes introduced to **`utoipa-gen`**.
 
 ### Added
 
-* Add support for jiff v1 (https://github.com/juhaku/utoipa/pull/XXXX)
+* Add support for jiff v1 (https://github.com/juhaku/utoipa/pull/1659)
 
 ### Fixed
 
