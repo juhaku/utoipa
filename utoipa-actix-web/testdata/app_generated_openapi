@@ -10,7 +10,6 @@
         "operationId": "inner_handler",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -33,7 +32,6 @@
         "operationId": "handler",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -50,7 +48,6 @@
         "operationId": "handler3",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -67,7 +64,6 @@
         "operationId": "handler2",
         "responses": {
           "200": {
-            "description": "",
             "content": {
               "application/json": {
                 "schema": {

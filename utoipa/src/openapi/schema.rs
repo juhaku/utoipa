@@ -9,7 +9,18 @@ use serde_json::Value;
 
 use super::extensions::Extensions;
 use super::RefOr;
-use super::{builder, security::SecurityScheme, set_value, xml::Xml, Deprecated, Response};
+use super::{
+    builder,
+    example::Example,
+    header::Header,
+    link::Link,
+    path::{Callback, Parameter, PathItem},
+    request_body::RequestBody,
+    security::SecurityScheme,
+    set_value,
+    xml::Xml,
+    Content, Deprecated, Response,
+};
 use crate::{ToResponse, ToSchema};
 
 macro_rules! component_from_builder {
@@ -73,11 +84,45 @@ builder! {
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
         pub responses: BTreeMap<String, RefOr<Response>>,
 
+        /// Map of reusable parameters.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub parameters: BTreeMap<String, RefOr<Parameter>>,
+
+        /// Map of reusable examples.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub examples: BTreeMap<String, RefOr<Example>>,
+
+        /// Map of reusable request bodies.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub request_bodies: BTreeMap<String, RefOr<RequestBody>>,
+
+        /// Map of reusable headers.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub headers: BTreeMap<String, RefOr<Header>>,
+
+        /// Map of reusable links.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub links: BTreeMap<String, RefOr<Link>>,
+
+        /// Map of reusable callbacks.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub callbacks: BTreeMap<String, RefOr<Callback>>,
+
+        /// Map of reusable path items.
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub path_items: BTreeMap<String, PathItem>,
+
+        /// Map of reusable [OpenAPI Media Type Object][media_type]s.
+        ///
+        /// [media_type]: https://spec.openapis.org/oas/latest.html#media-type-object
+        #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
+        pub media_types: BTreeMap<String, RefOr<Content>>,
+
         /// Map of reusable [OpenAPI Security Scheme Object][security_scheme]s.
         ///
         /// [security_scheme]: https://spec.openapis.org/oas/latest.html#security-scheme-object
         #[serde(skip_serializing_if = "BTreeMap::is_empty", default)]
-        pub security_schemes: BTreeMap<String, SecurityScheme>,
+        pub security_schemes: BTreeMap<String, RefOr<SecurityScheme>>,
 
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
@@ -98,7 +143,7 @@ impl Components {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn add_security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn add_security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         &mut self,
         name: N,
         security_scheme: S,
@@ -116,7 +161,7 @@ impl Components {
     pub fn add_security_schemes_from_iter<
         I: IntoIterator<Item = (N, S)>,
         N: Into<String>,
-        S: Into<SecurityScheme>,
+        S: Into<RefOr<SecurityScheme>>,
     >(
         &mut self,
         schemas: I,
@@ -221,6 +266,229 @@ impl ComponentsBuilder {
         self.response(name, response)
     }
 
+    /// Add [`Content`] to [`Components`] as a reusable media type object.
+    ///
+    /// Reusable media types are an OpenAPI 3.2 addition, added to the `mediaTypes` map of
+    /// [`Components`]. They can then be referenced by name from `content` maps using
+    /// [`RefOr::Ref`], instead of repeating the same media type definition across multiple
+    /// operations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, ContentBuilder, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .media_type(
+    ///         "PetJson",
+    ///         ContentBuilder::new()
+    ///             .schema(Some(ObjectBuilder::new().schema_type(Type::Object)))
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    pub fn media_type<S: Into<String>, C: Into<RefOr<Content>>>(
+        mut self,
+        name: S,
+        media_type: C,
+    ) -> Self {
+        self.media_types.insert(name.into(), media_type.into());
+        self
+    }
+
+    /// Add multiple reusable media type objects from an iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, ContentBuilder, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .media_types_from_iter([
+    ///         (
+    ///             "PetJson",
+    ///             ContentBuilder::new()
+    ///                 .schema(Some(ObjectBuilder::new().schema_type(Type::Object)))
+    ///                 .build(),
+    ///         ),
+    ///     ])
+    ///     .build();
+    /// ```
+    pub fn media_types_from_iter<
+        I: IntoIterator<Item = (S, C)>,
+        S: Into<String>,
+        C: Into<RefOr<Content>>,
+    >(
+        mut self,
+        media_types: I,
+    ) -> Self {
+        self.media_types.extend(
+            media_types
+                .into_iter()
+                .map(|(name, media_type)| (name.into(), media_type.into())),
+        );
+
+        self
+    }
+
+    /// Add reusable [`Parameter`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, path::{ParameterBuilder, ParameterIn}, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .parameter(
+    ///         "Limit",
+    ///         ParameterBuilder::new()
+    ///             .name("limit")
+    ///             .parameter_in(ParameterIn::Query)
+    ///             .schema(Some(ObjectBuilder::new().schema_type(Type::Integer)))
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    pub fn parameter<S: Into<String>, P: Into<RefOr<Parameter>>>(
+        mut self,
+        name: S,
+        parameter: P,
+    ) -> Self {
+        self.parameters.insert(name.into(), parameter.into());
+        self
+    }
+
+    /// Add reusable [`Example`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, example::ExampleBuilder};
+    /// let components = ComponentsBuilder::new()
+    ///     .example("Accepted", ExampleBuilder::new().summary("Accepted").build())
+    ///     .build();
+    /// ```
+    pub fn example<S: Into<String>, E: Into<RefOr<Example>>>(
+        mut self,
+        name: S,
+        example: E,
+    ) -> Self {
+        self.examples.insert(name.into(), example.into());
+        self
+    }
+
+    /// Add reusable [`RequestBody`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, request_body::RequestBodyBuilder, ContentBuilder, Ref};
+    /// let components = ComponentsBuilder::new()
+    ///     .request_body(
+    ///         "EventRequest",
+    ///         RequestBodyBuilder::new()
+    ///             .content(
+    ///                 "application/json",
+    ///                 ContentBuilder::new()
+    ///                     .schema(Some(Ref::from_schema_name("EventPayload")))
+    ///                     .build(),
+    ///             )
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    pub fn request_body<S: Into<String>, R: Into<RefOr<RequestBody>>>(
+        mut self,
+        name: S,
+        request_body: R,
+    ) -> Self {
+        self.request_bodies.insert(name.into(), request_body.into());
+        self
+    }
+
+    /// Add reusable [`Header`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, header::HeaderBuilder, ObjectBuilder, Type};
+    /// let components = ComponentsBuilder::new()
+    ///     .header(
+    ///         "RateLimit",
+    ///         HeaderBuilder::new()
+    ///             .schema(Some(ObjectBuilder::new().schema_type(Type::Integer)))
+    ///             .build(),
+    ///     )
+    ///     .build();
+    /// ```
+    pub fn header<S: Into<String>, H: Into<RefOr<Header>>>(mut self, name: S, header: H) -> Self {
+        self.headers.insert(name.into(), header.into());
+        self
+    }
+
+    /// Add reusable [`Link`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, link::LinkBuilder};
+    /// let components = ComponentsBuilder::new()
+    ///     .link("GetEvent", LinkBuilder::new().operation_id("getEvent").build())
+    ///     .build();
+    /// ```
+    pub fn link<S: Into<String>, L: Into<RefOr<Link>>>(mut self, name: S, link: L) -> Self {
+        self.links.insert(name.into(), link.into());
+        self
+    }
+
+    /// Add reusable [`Callback`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, path::{PathItemBuilder, OperationBuilder}, response::ResponseBuilder};
+    /// # use std::collections::BTreeMap;
+    /// let callback_path = PathItemBuilder::new()
+    ///     .query(Some(
+    ///         OperationBuilder::new().response("200", ResponseBuilder::new()),
+    ///     ))
+    ///     .build();
+    /// let components = ComponentsBuilder::new()
+    ///     .callback(
+    ///         "EventCallback",
+    ///         BTreeMap::from([(
+    ///             "{$request.body#/callbackUrl}".to_string(),
+    ///             callback_path.into(),
+    ///         )]),
+    ///     )
+    ///     .build();
+    /// ```
+    pub fn callback<S: Into<String>, C: Into<RefOr<Callback>>>(
+        mut self,
+        name: S,
+        callback: C,
+    ) -> Self {
+        self.callbacks.insert(name.into(), callback.into());
+        self
+    }
+
+    /// Add reusable [`PathItem`] to [`Components`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use utoipa::openapi::{ComponentsBuilder, path::{PathItemBuilder, OperationBuilder}, response::ResponseBuilder};
+    /// let path_item = PathItemBuilder::new()
+    ///     .query(Some(
+    ///         OperationBuilder::new().response("200", ResponseBuilder::new()),
+    ///     ))
+    ///     .build();
+    /// let components = ComponentsBuilder::new()
+    ///     .path_item("EventPath", path_item)
+    ///     .build();
+    /// ```
+    pub fn path_item<S: Into<String>, P: Into<PathItem>>(mut self, name: S, path_item: P) -> Self {
+        self.path_items.insert(name.into(), path_item.into());
+        self
+    }
+
     /// Add multiple [`struct@Response`]s to [`Components`] from iterator.
     ///
     /// Like the [`ComponentsBuilder::schemas_from_iter`] this allows adding multiple responses by
@@ -248,7 +516,7 @@ impl ComponentsBuilder {
     /// referenced by [`SecurityRequirement`][requirement]s. Second parameter is the [`SecurityScheme`].
     ///
     /// [requirement]: ../security/struct.SecurityRequirement.html
-    pub fn security_scheme<N: Into<String>, S: Into<SecurityScheme>>(
+    pub fn security_scheme<N: Into<String>, S: Into<RefOr<SecurityScheme>>>(
         mut self,
         name: N,
         security_scheme: S,
@@ -435,6 +703,14 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// Declares the schema as "read only".
+        #[serde(rename = "readOnly", skip_serializing_if = "Option::is_none")]
+        pub read_only: Option<bool>,
+
+        /// Declares the schema as "write only".
+        #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
+        pub write_only: Option<bool>,
     }
 }
 
@@ -478,6 +754,8 @@ impl Default for OneOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
+            read_only: Default::default(),
+            write_only: Default::default(),
         }
     }
 }
@@ -534,6 +812,16 @@ impl OneOfBuilder {
     /// Add openapi extensions (`x-something`) for [`OneOf`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Add or change read only flag for [`OneOf`].
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        set_value!(self read_only Some(read_only))
+    }
+
+    /// Add or change write only flag for [`OneOf`].
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
     }
 
     to_array_builder!();
@@ -1067,6 +1355,10 @@ builder! {
         /// See more details at <https://json-schema.org/understanding-json-schema/reference/non_json_data#contentmediatype>
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
+
+        /// The _`content_schema`_ keyword specifies the schema of string-encoded content.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub content_schema: Option<Box<RefOr<Schema>>>,
     }
 }
 
@@ -1202,13 +1494,13 @@ impl ObjectBuilder {
     }
 
     /// Add or change write only flag for [`Object`].
-    pub fn write_only(mut self, write_only: Option<bool>) -> Self {
-        set_value!(self write_only write_only)
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
     }
 
     /// Add or change read only flag for [`Object`].
-    pub fn read_only(mut self, read_only: Option<bool>) -> Self {
-        set_value!(self read_only read_only)
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        set_value!(self read_only Some(read_only))
     }
 
     /// Add or change additional [`Xml`] formatting of the [`Object`].
@@ -1287,6 +1579,11 @@ impl ObjectBuilder {
     /// `application/json`.
     pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
         set_value!(self content_media_type content_media_type.into())
+    }
+
+    /// Set or change [`Object::content_schema`].
+    pub fn content_schema<I: Into<RefOr<Schema>>>(mut self, content_schema: Option<I>) -> Self {
+        set_value!(self content_schema content_schema.map(|schema| Box::new(schema.into())))
     }
 
     to_array_builder!();
@@ -1397,6 +1694,28 @@ builder! {
         /// referenced component does not support summary field this does not have effect.
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub summary: String,
+
+        /// Declares the property as "read only" alongside the `$ref`.
+        /// In OAS 3.1 sibling keywords next to `$ref` are allowed.
+        /// These can only be set within a Schema object for sibling properties;
+        /// when used with a standalone Reference type these values should be omitted.
+        #[serde(rename = "readOnly", skip_serializing_if = "Option::is_none")]
+        pub read_only: Option<bool>,
+
+        /// Declares the property as "write only" alongside the `$ref`.
+        /// In OAS 3.1 sibling keywords next to `$ref` are allowed.
+        /// These can only be set within a Schema object for sibling properties;
+        /// when used with a standalone Reference type these values should be omitted.
+        #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
+        pub write_only: Option<bool>,
+
+        /// A default value which by default should override that of the referenced component.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub default: Option<Value>,
+
+        /// A title which by default should override that of the referenced component..
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
     }
 }
 
@@ -1450,6 +1769,26 @@ impl RefBuilder {
     /// referenced component does not support summary field this does not have effect.
     pub fn summary<S: Into<String>>(mut self, summary: S) -> Self {
         set_value!(self summary summary.into())
+    }
+
+    /// Add or change read only flag for the reference.
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        set_value!(self read_only Some(read_only))
+    }
+
+    /// Add or change write only flag for the reference.
+    pub fn write_only(mut self, write_only: bool) -> Self {
+        set_value!(self write_only Some(write_only))
+    }
+
+    /// Add or change default value for the object which by default should override that of the referenced component.
+    pub fn default(mut self, default: Option<Value>) -> Self {
+        set_value!(self default default)
+    }
+
+    /// Add or change the title for the object which by default should override that of the referenced component.
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
     }
 }
 
@@ -1674,6 +2013,10 @@ builder! {
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
 
+        /// The _`content_schema`_ keyword specifies the schema of string-encoded content.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub content_schema: Option<Box<RefOr<Schema>>>,
+
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
@@ -1699,6 +2042,7 @@ impl Default for Array {
             extensions: Default::default(),
             content_encoding: Default::default(),
             content_media_type: Default::default(),
+            content_schema: Default::default(),
         }
     }
 }
@@ -1837,6 +2181,11 @@ impl ArrayBuilder {
     /// `application/json`.
     pub fn content_media_type<S: Into<String>>(mut self, content_media_type: S) -> Self {
         set_value!(self content_media_type content_media_type.into())
+    }
+
+    /// Set or change [`Array::content_schema`].
+    pub fn content_schema<I: Into<RefOr<Schema>>>(mut self, content_schema: Option<I>) -> Self {
+        set_value!(self content_schema content_schema.map(|schema| Box::new(schema.into())))
     }
 
     /// Add openapi extensions (`x-something`) for [`Array`].
@@ -2031,18 +2380,22 @@ pub enum KnownFormat {
     /// 8 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint8")]
     UInt8,
     /// 16 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint16")]
     UInt16,
     /// 32 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint32")]
     UInt32,
     /// 64 bit unsigned integer.
     #[cfg(feature = "non_strict_integers")]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "non_strict_integers")))]
+    #[serde(rename = "uint64")]
     UInt64,
     /// floating point number.
     Float,
@@ -2130,6 +2483,27 @@ mod tests {
 
     use super::*;
     use crate::openapi::*;
+
+    #[cfg(feature = "non_strict_integers")]
+    #[test]
+    fn serialize_unsigned_integer_known_formats() {
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt8).unwrap(),
+            json!("uint8")
+        );
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt16).unwrap(),
+            json!("uint16")
+        );
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt32).unwrap(),
+            json!("uint32")
+        );
+        assert_eq!(
+            serde_json::to_value(KnownFormat::UInt64).unwrap(),
+            json!("uint64")
+        );
+    }
 
     #[test]
     fn create_schema_serializes_json() -> Result<(), serde_json::Error> {
@@ -2424,6 +2798,7 @@ mod tests {
                 "TLS",
                 SecurityScheme::MutualTls {
                     description: None,
+                    deprecated: None,
                     extensions: None,
                 },
             )

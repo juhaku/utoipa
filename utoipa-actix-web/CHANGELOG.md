@@ -1,5 +1,11 @@
 # Changelog - utoipa-actix-web
 
+## 0.2 - Sep 23 2026
+
+### Changed
+
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
+
 ## 0.1.2 - Nov 8 2024
 
 ### Added

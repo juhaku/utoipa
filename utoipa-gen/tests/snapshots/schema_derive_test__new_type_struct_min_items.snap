@@ -1,0 +1,11 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "items": {
+    "type": "string"
+  },
+  "minItems": 1,
+  "type": "array"
+}

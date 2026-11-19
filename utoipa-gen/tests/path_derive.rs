@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use insta::assert_json_snapshot;
-use paste::paste;
+use pastey::paste;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -282,6 +282,60 @@ fn derive_path_with_security_requirements() {
         "security.[1].api_oauth.[0]" = r###""read:items""###, "api_oauth first scope"
         "security.[1].api_oauth.[1]" = r###""edit:items""###, "api_oauth second scope"
         "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
+    }
+}
+
+#[test]
+fn derive_path_with_security_requirements_display_types() {
+    use std::fmt::Display;
+
+    #[derive(Debug)]
+    enum Scope {
+        Read,
+        Write,
+    }
+
+    impl Display for Scope {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Scope::Read => write!(f, "read:items"),
+                Scope::Write => write!(f, "write:items"),
+            }
+        }
+    }
+
+    const READ_SCOPE: &str = "read:items";
+
+    #[utoipa::path(
+        get,
+        path = "/items",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        security(
+            (),
+            ("api_oauth" = [Scope::Read.to_string(), Scope::Write.to_string()]),
+            ("jwt_token" = []),
+            ("mixed" = [READ_SCOPE, Scope::Write.to_string()])
+        )
+    )]
+    #[allow(unused)]
+    fn get_items() -> String {
+        "".to_string()
+    }
+    let operation = test_api_fn_doc! {
+        get_items,
+        operation: get,
+        path: "/items"
+    };
+
+    assert_value! {operation=>
+        "security.[0]" = "{}", "Optional security requirement"
+        "security.[1].api_oauth.[0]" = r###""read:items""###, "api_oauth first scope with Display"
+        "security.[1].api_oauth.[1]" = r###""write:items""###, "api_oauth second scope with Display"
+        "security.[2].jwt_token" = "[]", "jwt_token auth scopes"
+        "security.[3].mixed.[0]" = r###""read:items""###, "mixed first scope literal"
+        "security.[3].mixed.[1]" = r###""write:items""###, "mixed second scope Display"
     }
 }
 
@@ -858,6 +912,69 @@ fn derive_path_params_into_params_with_unit_type() {
 }
 
 #[test]
+fn derive_parameter_rename_expr() {
+    const NEW_NAME: &str = "renamed_field";
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Path, names(NEW_NAME))]
+    struct Filter(#[allow(unused)] ());
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
+fn derive_parameter_rename_expr_in_param_name_and_title() {
+    const PARAM_NAME: &str = "filter_value";
+    const PARAM_TITLE: &str = "another_name";
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query, names(PARAM_NAME, PARAM_TITLE))]
+    struct Filter(#[allow(unused)] String, #[allow(unused)] String);
+
+    #[utoipa::path(
+        get,
+        path = "foo",
+        responses(
+            (status = 200, description = "success response")
+        ),
+        params(
+            Filter
+        )
+    )]
+    #[allow(unused)]
+    fn get_foo(query: Filter) {}
+
+    #[derive(OpenApi, Default)]
+    #[openapi(paths(get_foo))]
+    struct ApiDoc;
+
+    let doc = serde_json::to_value(ApiDoc::openapi()).unwrap();
+    let parameters = doc.pointer("/paths/foo/get/parameters").unwrap();
+
+    assert_json_snapshot!(parameters)
+}
+
+#[test]
 fn arbitrary_expr_in_operation_id() {
     #[utoipa::path(
         get,
@@ -1072,6 +1189,35 @@ fn derive_into_params_required() {
         name: String,
         name2: Option<String>,
         #[param(required)]
+        name3: Option<String>,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value)
+}
+
+#[test]
+fn derive_into_params_option_with_deserialize_with_is_required() {
+    use serde::Deserialize;
+
+    #[derive(IntoParams, Deserialize)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct Params {
+        #[serde(deserialize_with = "Option::deserialize")]
+        name: Option<String>,
+        #[serde(default, deserialize_with = "Option::deserialize")]
+        name2: Option<String>,
         name3: Option<String>,
     }
 
@@ -1516,13 +1662,13 @@ fn derive_path_with_response_links() {
         get,
         path = "/test-links",
         responses(
-            (status = 200, description = "success response", 
+            (status = 200, description = "success response",
                 links(
                     ("getFoo" = (
-                        operation_id = "test_links", 
-                        parameters(("key" = "value"), ("json_value" = json!(1))), 
-                        request_body = "this is body", 
-                        server(url = "http://localhost") 
+                        operation_id = "test_links",
+                        parameters(("key" = "value"), ("json_value" = json!(1))),
+                        request_body = "this is body",
+                        server(url = "http://localhost")
                     )),
                     ("getBar" = (
                         operation_ref = "this is ref"
@@ -1826,6 +1972,102 @@ fn derive_into_params_with_ignored_eq_false_field() {
     let value = operation.pointer("/parameters");
 
     assert_json_snapshot!(value)
+}
+
+#[test]
+fn derive_into_params_with_ignored_struct_field() {
+    #![allow(unused)]
+
+    struct Private {}
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore)]
+        __this_is_private: Private,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_into_params_with_ignored_enum_field() {
+    #![allow(unused)]
+
+    enum Private {}
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    struct Params {
+        value: String,
+        #[param(ignore)]
+        __this_is_private: Private,
+    }
+
+    #[utoipa::path(get, path = "/params", params(Params))]
+    #[allow(unused)]
+    fn get_params() {}
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+
+    let value = operation.pointer("/parameters");
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_into_params_with_generic_field() {
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum Bird {
+        Sparrow,
+        Pigeon,
+        Crow,
+        Coot,
+    }
+
+    #[derive(ToSchema)]
+    #[allow(unused)]
+    enum Beetle {
+        Stag,
+        Longhorn,
+        Weevil,
+    }
+
+    #[derive(IntoParams)]
+    #[into_params(parameter_in = Query)]
+    #[allow(unused)]
+    struct QueryParams<AnimalType: ToSchema> {
+        animal: AnimalType,
+    }
+
+    #[utoipa::path(get, path = "/params", params(QueryParams<Bird>, QueryParams<Beetle>))]
+    #[allow(unused)]
+    fn get_params() {}
+
+    let operation = test_api_fn_doc! {
+        get_params,
+        operation: get,
+        path: "/params"
+    };
+    let operation = operation.pointer("/parameters");
+
+    assert_json_snapshot!(operation);
 }
 
 #[test]

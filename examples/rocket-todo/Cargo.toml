@@ -9,9 +9,15 @@ authors = ["Elli Example <example@example.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# cookie (actix/rocket) does not build with time 0.3.52+; drop when cookie is fixed
+time = { version = ">=0.3, <0.3.52" }
 rocket = { version = "0.5", features = ["json"] }
 utoipa = { path = "../../utoipa", features = ["rocket_extras"] }
-utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = ["rocket"] }
+utoipa-swagger-ui = { path = "../../utoipa-swagger-ui", features = [
+    "rocket",
+    "gzip",
+    "minified",
+] }
 utoipa-redoc = { path = "../../utoipa-redoc", features = ["rocket"] }
 utoipa-rapidoc = { path = "../../utoipa-rapidoc", features = ["rocket"] }
 utoipa-scalar = { path = "../../utoipa-scalar", features = ["rocket"] }

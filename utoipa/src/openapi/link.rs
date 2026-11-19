@@ -26,6 +26,7 @@ builder! {
     #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     #[non_exhaustive]
+    #[serde(rename_all = "camelCase")]
     pub struct Link {
         /// A relative or absolute URI reference to an OAS operation. This field is
         /// mutually exclusive of the _`operation_id`_ field, and **must** point to an [Operation

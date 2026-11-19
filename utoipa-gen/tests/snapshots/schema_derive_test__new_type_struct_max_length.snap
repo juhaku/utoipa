@@ -1,0 +1,8 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "maxLength": 32,
+  "type": "string"
+}

@@ -1,7 +1,7 @@
 ---
 source: utoipa-gen/tests/response_derive_test.rs
+assertion_line: 336
 expression: responses
-snapshot_kind: text
 ---
 {
   "200": {
@@ -30,12 +30,9 @@ snapshot_kind: text
           "$ref": "#/components/schemas/BadRequest"
         }
       }
-    },
-    "description": ""
+    }
   },
-  "404": {
-    "description": ""
-  },
+  "404": {},
   "418": {
     "content": {
       "application/json": {
@@ -51,8 +48,7 @@ snapshot_kind: text
           "type": "object"
         }
       }
-    },
-    "description": ""
+    }
   },
   "500": {
     "$ref": "#/components/responses/Response"

@@ -54,23 +54,23 @@ where
         let mut router = if path == "/" {
             router
                 .route(path, handler.clone())
-                .route(&format!("{}{{*rest}}", path), handler)
+                .route(&format!("{path}{{*rest}}"), handler)
         } else {
-            let path = if path.ends_with('/') {
-                &path[..path.len() - 1]
+            let path = if let Some(without_suffix_path) = path.strip_suffix("/") {
+                without_suffix_path
             } else {
                 path
             };
             debug_assert!(!path.is_empty());
 
-            let slash_path = format!("{}/", path);
+            let slash_path = format!("{path}/");
             router
                 .route(
                     path,
                     routing::get(|| async move { axum::response::Redirect::to(&slash_path) }),
                 )
-                .route(&format!("{}/", path), handler.clone())
-                .route(&format!("{}/{{*rest}}", path), handler)
+                .route(&format!("{path}/"), handler.clone())
+                .route(&format!("{path}/{{*rest}}"), handler)
         };
 
         if let Some(BasicAuth { username, password }) = config.basic_auth {
@@ -84,8 +84,8 @@ where
                         if let Some(header) = headers.get("Authorization") {
                             if let Ok(header_str) = header.to_str() {
                                 let base64_encoded_credentials =
-                                    BASE64_STANDARD.encode(format!("{}:{}", &username, &password));
-                                if header_str == format!("Basic {}", base64_encoded_credentials) {
+                                    BASE64_STANDARD.encode(format!("{username}:{password}"));
+                                if header_str == format!("Basic {base64_encoded_credentials}") {
                                     return Ok::<Response<Body>, StatusCode>(next.run(req).await);
                                 }
                             }
@@ -139,12 +139,24 @@ async fn serve_swagger_ui(
     match super::serve(tail, state) {
         Ok(file) => file
             .map(|file| {
-                (
-                    StatusCode::OK,
-                    [("Content-Type", file.content_type)],
-                    file.bytes,
-                )
-                    .into_response()
+                if file.gzpipped {
+                    (
+                        StatusCode::OK,
+                        [
+                            ("Content-Type", file.content_type),
+                            ("Content-Encoding", "gzip".to_string()),
+                        ],
+                        file.bytes,
+                    )
+                        .into_response()
+                } else {
+                    (
+                        StatusCode::OK,
+                        [("Content-Type", file.content_type)],
+                        file.bytes,
+                    )
+                        .into_response()
+                }
             })
             .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response()),
         Err(error) => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response(),
@@ -202,7 +214,7 @@ mod tests {
         let response = app.clone().oneshot(get("/swagger-ui")).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let encoded_credentials = BASE64_STANDARD.encode("admin:password");
-        let authorization = format!("Basic {}", encoded_credentials);
+        let authorization = format!("Basic {encoded_credentials}");
         let request = authorized_get("/swagger-ui", &authorization);
         let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::SEE_OTHER);

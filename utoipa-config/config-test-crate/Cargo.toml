@@ -2,10 +2,10 @@
 name = "utoipa-config-test"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.88"
 
 [dependencies]
-utoipa = { version = "5.0.0", path = "../../utoipa", features = [
+utoipa = { version = "6.0.0", path = "../../utoipa", features = [
     "debug",
     "config",
 ] }

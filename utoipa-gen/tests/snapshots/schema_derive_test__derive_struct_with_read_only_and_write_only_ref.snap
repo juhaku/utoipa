@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: user
+snapshot_kind: text
+---
+{
+  "properties": {
+    "address": {
+      "$ref": "#/components/schemas/Inner",
+      "readOnly": true
+    },
+    "secret": {
+      "$ref": "#/components/schemas/Inner",
+      "writeOnly": true
+    }
+  },
+  "required": [
+    "address",
+    "secret"
+  ],
+  "type": "object"
+}

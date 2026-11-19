@@ -1,5 +1,15 @@
 # Changelog - utoipa-config
 
+## 0.1.3 - Sep 23 2026
+
+### Changed
+
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
+
+### Fixed
+
+* Fixed clippy lints (https://github.com/juhaku/utoipa/pull/1352)
+
 ## 0.1.2 - Oct 23 2024
 
 ### Changed
@@ -30,4 +40,3 @@
 * Remove commit commit id from changelogs (https://github.com/juhaku/utoipa/pull/1077)
 * Update to rc version
 * Update README.md
-

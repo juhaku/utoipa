@@ -1,0 +1,8 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "minLength": 3,
+  "type": "string"
+}

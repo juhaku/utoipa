@@ -191,10 +191,7 @@ impl<'c> Config<'c> {
     }
 
     fn get_out_dir() -> Option<String> {
-        match std::env::var("OUT_DIR") {
-            Ok(out_dir) => Some(out_dir),
-            Err(_) => None,
-        }
+        std::env::var("OUT_DIR").ok()
     }
 
     /// Write the current [`Config`] to a file. This persists the [`Config`] for `utoipa` to read

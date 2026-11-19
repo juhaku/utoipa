@@ -1,5 +1,12 @@
 # Changelog - utoipa-axum
 
+## 0.3.0 - Sep 23 2026
+
+### Changed
+
+* Upgrade to Rust MSRV to 1.88 (https://github.com/juhaku/utoipa/pull/1526)
+* Use pastey instead of unmaintained paste and fix some clippy warnings (https://github.com/juhaku/utoipa/pull/1452)
+
 ## 0.2.0 - Thu 16 2025
 
 * Re-release of what was released in 0.1.4 (https://github.com/juhaku/utoipa/pull/1295)

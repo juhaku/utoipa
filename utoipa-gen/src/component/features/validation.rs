@@ -91,7 +91,7 @@ impl_feature! {
 impl Validate for MultipleOf {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!( "`multiple_of` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!( "`multiple_of` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-multipleof`")),
             _ => None
         }
@@ -125,7 +125,7 @@ impl_feature! {
 impl Validate for Maximum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`maximum` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`maximum` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maximum`")),
             _ => None,
         }
@@ -175,7 +175,7 @@ impl Validate for Minimum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
             Err(error) => Some(
-                Diagnostics::with_span(self.1.span(), format!("`minimum` error: {}", error))
+                Diagnostics::with_span(self.1.span(), format!("`minimum` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minimum`")
             ),
             _ => None,
@@ -213,7 +213,7 @@ impl_feature! {
 impl Validate for ExclusiveMaximum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_maximum` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_maximum` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusivemaximum`")),
             _ => None,
         }
@@ -250,7 +250,7 @@ impl_feature! {
 impl Validate for ExclusiveMinimum {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_minimum` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`exclusive_minimum` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-exclusiveminimum`")),
             _ => None,
         }
@@ -287,7 +287,7 @@ impl_feature! {
 impl Validate for MaxLength {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_length` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_length` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxlength`")),
             _ => None,
         }
@@ -324,7 +324,7 @@ impl_feature! {
 impl Validate for MinLength {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_length` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_length` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minlength`")),
             _ => None,
         }
@@ -361,7 +361,7 @@ impl_feature! {
 impl Validate for Pattern {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`pattern` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`pattern` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-pattern`")
             ),
             _ => None,
@@ -400,7 +400,7 @@ impl_feature! {
 impl Validate for MaxItems {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_items` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`max_items` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-maxitems")),
             _ => None,
         }
@@ -437,7 +437,7 @@ impl_feature! {
 impl Validate for MinItems {
     fn validate(&self, validator: impl Validator) -> Option<Diagnostics> {
         match validator.is_valid() {
-            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_items` error: {}", error))
+            Err(error) => Some(Diagnostics::with_span(self.1.span(), format!("`min_items` error: {error}"))
                 .help("See more details: `http://json-schema.org/draft/2020-12/json-schema-validation.html#name-minitems")),
             _ => None,
         }

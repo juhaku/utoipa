@@ -7,7 +7,7 @@ use syn::{
     punctuated::Punctuated,
     spanned::Spanned,
     token::{And, Comma},
-    Attribute, Error, ExprPath, LitStr, Token, TypePath,
+    Attribute, Error, ExprPath, Token, TypePath,
 };
 
 use proc_macro2::TokenStream;
@@ -17,7 +17,9 @@ use crate::{
     component::{features::Feature, ComponentSchema, Container, TypeTree},
     parse_utils,
     security_requirement::SecurityRequirementsAttr,
-    Array, Diagnostics, ExternalDocs, ToTokensDiagnostics,
+    server::Server,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Array, ExternalDocs,
 };
 use crate::{path, OptionExt};
 
@@ -29,6 +31,7 @@ mod info;
 #[cfg_attr(feature = "debug", derive(Debug))]
 pub struct OpenApiAttr<'o> {
     info: Option<Info<'o>>,
+    version: Option<OpenApiVersionAttr>,
     paths: Punctuated<ExprPath, Comma>,
     components: Components,
     modifiers: Punctuated<Modifier, Comma>,
@@ -37,12 +40,16 @@ pub struct OpenApiAttr<'o> {
     external_docs: Option<ExternalDocs>,
     servers: Punctuated<Server, Comma>,
     nested: Vec<NestOpenApi>,
+    merged: Vec<OpenApiReference>,
 }
 
 impl<'o> OpenApiAttr<'o> {
     fn merge(mut self, other: OpenApiAttr<'o>) -> Self {
         if other.info.is_some() {
             self.info = other.info;
+        }
+        if other.version.is_some() {
+            self.version = other.version;
         }
         if !other.paths.is_empty() {
             self.paths = other.paths;
@@ -65,12 +72,14 @@ impl<'o> OpenApiAttr<'o> {
         if !other.servers.is_empty() {
             self.servers = other.servers;
         }
+        self.nested.extend(other.nested);
+        self.merged.extend(other.merged);
 
         self
     }
 }
 
-pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr>, Error> {
+pub fn parse_openapi_attrs(attrs: &[Attribute]) -> Result<Option<OpenApiAttr<'_>>, Error> {
     attrs
         .iter()
         .filter(|attribute| attribute.path().is_ident("openapi"))
@@ -83,6 +92,7 @@ impl Parse for OpenApiAttr<'_> {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         const EXPECTED_ATTRIBUTE: &str =
             "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers, nest";
+        "unexpected attribute, expected any of: handlers, components, modifiers, security, tags, external_docs, servers, nest, merge, version";
         let mut openapi = OpenApiAttr::default();
 
         while !input.is_empty() {
@@ -96,6 +106,9 @@ impl Parse for OpenApiAttr<'_> {
                     let info_stream;
                     parenthesized!(info_stream in input);
                     openapi.info = Some(info_stream.parse()?)
+                }
+                "version" => {
+                    openapi.version = Some(input.parse()?);
                 }
                 "paths" => {
                     openapi.paths = parse_utils::parse_comma_separated_within_parenthesis(input)?;
@@ -130,6 +143,11 @@ impl Parse for OpenApiAttr<'_> {
                     parenthesized!(nest in input);
                     openapi.nested = parse_utils::parse_groups_collect(&nest)?;
                 }
+                "merge" => {
+                    let merge;
+                    parenthesized!(merge in input);
+                    openapi.merged = parse_utils::parse_groups_collect(&merge)?;
+                }
                 _ => {
                     return Err(Error::new(ident.span(), EXPECTED_ATTRIBUTE));
                 }
@@ -141,6 +159,55 @@ impl Parse for OpenApiAttr<'_> {
         }
 
         Ok(openapi)
+    }
+}
+
+/// Parsed `version = "..."` attribute of `#[derive(OpenApi)]`.
+///
+/// The runtime [`utoipa::openapi::OpenApiVersion`] enum lives in the `utoipa` crate and cannot be
+/// referenced here (proc-macros only emit tokens and do not depend on `utoipa`). This type validates
+/// the version literal at compile time and remembers which `OpenApiVersion` variant to emit.
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct OpenApiVersionAttr {
+    /// Identifier of the [`utoipa::openapi::OpenApiVersion`] variant to emit, e.g. `Version32`.
+    variant: Ident,
+}
+
+impl Parse for OpenApiVersionAttr {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let version = parse_utils::parse_next(input, || input.parse::<syn::LitStr>())?;
+        let value = version.value();
+        // Require the full `X.Y.Z` form to match the leniency of `OpenApiVersion`'s runtime
+        // `Deserialize`, which only accepts three dot separated segments (e.g. `3.2.0`, and any
+        // `3.1.x` / `3.2.x` patch).
+        let digits = value
+            .split('.')
+            .flat_map(|digit| digit.parse::<u8>())
+            .collect::<Vec<_>>();
+
+        let variant = match digits.as_slice() {
+            [3, 1, _] => "Version31",
+            [3, 2, _] => "Version32",
+            _ => {
+                return Err(syn::Error::new(
+                    version.span(),
+                    format!(
+                        r#"unsupported OpenAPI version `{value}`, expected one of: "3.1.0", "3.2.0""#
+                    ),
+                ))
+            }
+        };
+
+        Ok(Self {
+            variant: Ident::new(variant, version.span()),
+        })
+    }
+}
+
+impl ToTokens for OpenApiVersionAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let variant = &self.variant;
+        tokens.extend(quote! { utoipa::openapi::OpenApiVersion::#variant });
     }
 }
 
@@ -211,14 +278,16 @@ impl Parse for Modifier {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Tag {
     name: parse_utils::LitStrOrExpr,
+    summary: Option<parse_utils::LitStrOrExpr>,
     description: Option<parse_utils::LitStrOrExpr>,
+    parent: Option<parse_utils::LitStrOrExpr>,
+    kind: Option<parse_utils::LitStrOrExpr>,
     external_docs: Option<ExternalDocs>,
 }
 
 impl Parse for Tag {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const EXPECTED_ATTRIBUTE: &str =
-            "unexpected token, expected any of: name, description, external_docs";
+        const EXPECTED_ATTRIBUTE: &str = "unexpected token, expected any of: name, summary, description, parent, kind, external_docs";
 
         let mut tag = Tag::default();
 
@@ -230,9 +299,14 @@ impl Parse for Tag {
 
             match attribute_name {
                 "name" => tag.name = parse_utils::parse_next_literal_str_or_expr(input)?,
+                "summary" => {
+                    tag.summary = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
+                }
                 "description" => {
                     tag.description = Some(parse_utils::parse_next_literal_str_or_expr(input)?)
                 }
+                "parent" => tag.parent = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
+                "kind" => tag.kind = Some(parse_utils::parse_next_literal_str_or_expr(input)?),
                 "external_docs" => {
                     let content;
                     parenthesized!(content in input);
@@ -263,6 +337,24 @@ impl ToTokens for Tag {
             });
         }
 
+        if let Some(ref summary) = self.summary {
+            tokens.extend(quote! {
+                .summary(Some(#summary))
+            });
+        }
+
+        if let Some(ref parent) = self.parent {
+            tokens.extend(quote! {
+                .parent(Some(#parent))
+            });
+        }
+
+        if let Some(ref kind) = self.kind {
+            tokens.extend(quote! {
+                .kind(Some(#kind))
+            });
+        }
+
         if let Some(ref external_docs) = self.external_docs {
             tokens.extend(quote! {
                 .external_docs(Some(#external_docs))
@@ -272,201 +364,53 @@ impl ToTokens for Tag {
         tokens.extend(quote! { .build() })
     }
 }
-
-// (url = "http:://url", description = "description", variables(...))
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-pub struct Server {
-    url: String,
-    description: Option<String>,
-    variables: Punctuated<ServerVariable, Comma>,
-}
-
-impl Parse for Server {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let server_stream;
-        parenthesized!(server_stream in input);
-        let mut server = Server::default();
-        while !server_stream.is_empty() {
-            let ident = server_stream.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
-
-            match attribute_name {
-                "url" => {
-                    server.url = parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value()
-                }
-                "description" => {
-                    server.description =
-                        Some(parse_utils::parse_next(&server_stream, || server_stream.parse::<LitStr>())?.value())
-                }
-                "variables" => {
-                    server.variables = parse_utils::parse_comma_separated_within_parenthesis(&server_stream)?
-                }
-                _ => {
-                    return Err(Error::new(ident.span(), format!("unexpected attribute: {attribute_name}, expected one of: url, description, variables")))
-                }
-            }
-
-            if !server_stream.is_empty() {
-                server_stream.parse::<Comma>()?;
-            }
-        }
-
-        Ok(server)
-    }
-}
-
-impl ToTokens for Server {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let url = &self.url;
-        let description = &self
-            .description
-            .as_ref()
-            .map(|description| quote! { .description(Some(#description)) });
-
-        let parameters = self
-            .variables
-            .iter()
-            .map(|variable| {
-                let name = &variable.name;
-                let default_value = &variable.default;
-                let description = &variable
-                    .description
-                    .as_ref()
-                    .map(|description| quote! { .description(Some(#description)) });
-                let enum_values = &variable.enum_values.as_ref().map(|enum_values| {
-                    let enum_values = enum_values.iter().collect::<Array<&LitStr>>();
-
-                    quote! { .enum_values(Some(#enum_values)) }
-                });
-
-                quote! {
-                    .parameter(#name, utoipa::openapi::server::ServerVariableBuilder::new()
-                        .default_value(#default_value)
-                        #description
-                        #enum_values
-                    )
-                }
-            })
-            .collect::<TokenStream>();
-
-        tokens.extend(quote! {
-            utoipa::openapi::server::ServerBuilder::new()
-                .url(#url)
-                #description
-                #parameters
-                .build()
-        })
-    }
-}
-
-// ("username" = (default = "demo", description = "This is default username for the API")),
-// ("port" = (enum_values = (8080, 5000, 4545)))
-#[derive(Default)]
-#[cfg_attr(feature = "debug", derive(Debug))]
-struct ServerVariable {
-    name: String,
-    default: String,
-    description: Option<String>,
-    enum_values: Option<Punctuated<LitStr, Comma>>,
-}
-
-impl Parse for ServerVariable {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let variable_stream;
-        parenthesized!(variable_stream in input);
-        let mut server_variable = ServerVariable {
-            name: variable_stream.parse::<LitStr>()?.value(),
-            ..ServerVariable::default()
-        };
-
-        variable_stream.parse::<Token![=]>()?;
-        let content;
-        parenthesized!(content in variable_stream);
-
-        while !content.is_empty() {
-            let ident = content.parse::<Ident>()?;
-            let attribute_name = &*ident.to_string();
-
-            match attribute_name {
-                "default" => {
-                    server_variable.default =
-                        parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value()
-                }
-                "description" => {
-                    server_variable.description =
-                        Some(parse_utils::parse_next(&content, || content.parse::<LitStr>())?.value())
-                }
-                "enum_values" => {
-                    server_variable.enum_values =
-                        Some(parse_utils::parse_comma_separated_within_parenthesis(&content)?)
-                }
-                _ => {
-                    return Err(Error::new(ident.span(), format!( "unexpected attribute: {attribute_name}, expected one of: default, description, enum_values")))
-                }
-            }
-
-            if !content.is_empty() {
-                content.parse::<Comma>()?;
-            }
-        }
-
-        Ok(server_variable)
-    }
-}
-
 pub(crate) struct OpenApi<'o>(pub Option<OpenApiAttr<'o>>, pub Ident);
 
 impl OpenApi<'_> {
     fn nested_tokens(&self) -> Option<TokenStream> {
         let nested = self.0.as_ref().map(|openapi| &openapi.nested)?;
-        let nest_tokens = nested.iter()
-                .map(|item| {
-                    let path = &item.path;
-                    let nest_api = &item
-                        .open_api
-                        .as_ref()
-                        .expect("type path of nested api is mandatory");
-                    let nest_api_ident = &nest_api
-                        .path
-                        .segments
-                        .last()
-                        .expect("nest api must have at least one segment")
-                        .ident;
-                    let nest_api_config = format_ident!("{}Config", nest_api_ident.to_string());
+        let nest_tokens = nested
+            .iter()
+            .map(|item| {
+                let path = &item.path;
+                let module_path = item.reference.module_path();
+                let openapi = item
+                    .reference
+                    .openapi_tokens("Config", quote! { #module_path });
+                let span = item.reference.api.span();
 
-                    let module_path = nest_api
-                        .path
-                        .segments
-                        .iter()
-                        .take(nest_api.path.segments.len() - 1)
-                        .map(|segment| segment.ident.to_string())
-                        .collect::<Vec<_>>()
-                        .join("::");
-                    let tags = &item.tags.iter().collect::<Array<_>>();
-
-                    let span = nest_api.span();
-                    quote_spanned! {span=>
-                        .nest(#path, {
-                            #[allow(non_camel_case_types)]
-                            struct #nest_api_config;
-                            impl utoipa::__dev::NestedApiConfig for #nest_api_config {
-                                fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>, &'static str) {
-                                    let api = <#nest_api as utoipa::OpenApi>::openapi();
-
-                                    (api, #tags.into(), #module_path)
-                                }
-                            }
-                            <#nest_api_config as utoipa::OpenApi>::openapi()
-                        })
-                    }
-                })
-                .collect::<TokenStream>();
+                quote_spanned! {span=>
+                    .nest(#path, #openapi)
+                }
+            })
+            .collect::<TokenStream>();
 
         if nest_tokens.is_empty() {
             None
         } else {
             Some(nest_tokens)
+        }
+    }
+
+    fn merged_tokens(&self) -> Option<TokenStream> {
+        let merged = self.0.as_ref().map(|openapi| &openapi.merged)?;
+        let merge_tokens = merged
+            .iter()
+            .map(|item| {
+                // Merge keeps paths unchanged, so there is no module-path fallback tag.
+                let openapi = item.openapi_tokens("MergeConfig", quote! { "" });
+                let span = item.api.span();
+
+                quote_spanned! {span=>
+                    .merge_from(#openapi)
+                }
+            })
+            .collect::<TokenStream>();
+
+        if merge_tokens.is_empty() {
+            None
+        } else {
+            Some(merge_tokens)
         }
     }
 }
@@ -542,6 +486,15 @@ impl ToTokensDiagnostics for OpenApi<'_> {
             _ => None,
         };
 
+        let version = attributes
+            .as_ref()
+            .and_then(|attributes| attributes.version.as_ref())
+            .map(|version| {
+                quote! {
+                    .openapi(#version)
+                }
+            });
+
         let modifiers_tokens = attributes
             .as_ref()
             .map(|attributes| &attributes.modifiers)
@@ -559,11 +512,17 @@ impl ToTokensDiagnostics for OpenApi<'_> {
         let nested_tokens = self
             .nested_tokens()
             .map(|tokens| quote! {openapi = openapi #tokens;});
+
+        let merged_tokens = self
+            .merged_tokens()
+            .map(|tokens| quote! {openapi = openapi #tokens;});
+
         tokens.extend(quote! {
             impl utoipa::OpenApi for #ident {
                 fn openapi() -> utoipa::openapi::OpenApi {
                     use utoipa::{ToSchema, Path};
                     let mut openapi = utoipa::openapi::OpenApiBuilder::new()
+                        #version
                         .info(#info)
                         .paths({
                             #path_items
@@ -577,6 +536,7 @@ impl ToTokensDiagnostics for OpenApi<'_> {
                     #handler_schemas
                     components.schemas.extend(schemas);
                     #nested_tokens
+                    #merged_tokens
 
                     #modifiers_tokens
 
@@ -777,55 +737,165 @@ fn impl_paths(handler_paths: Option<&Punctuated<ExprPath, Comma>>) -> Paths {
     Paths(tokens, handlers)
 }
 
-/// (path = "/nest/path", api = NestApi, tags = ["tag1", "tag2"])
+/// Shared `api` and optional `tags` arguments of `nest(...)` and `merge(...)`.
+///
+/// The two attributes stay separate because nesting rewrites paths, while merging preserves them.
 #[cfg_attr(feature = "debug", derive(Debug))]
-#[derive(Default)]
-struct NestOpenApi {
-    path: parse_utils::LitStrOrExpr,
-    open_api: Option<TypePath>,
+struct OpenApiReference {
+    api: TypePath,
     tags: Punctuated<parse_utils::LitStrOrExpr, Comma>,
 }
 
-impl Parse for NestOpenApi {
+impl OpenApiReference {
+    fn parse_argument(
+        ident: &Ident,
+        input: ParseStream,
+        api: &mut Option<TypePath>,
+        tags: &mut Punctuated<parse_utils::LitStrOrExpr, Comma>,
+    ) -> syn::Result<bool> {
+        match &*ident.to_string() {
+            "api" => {
+                *api = Some(parse_utils::parse_next(input, || input.parse())?);
+                Ok(true)
+            }
+            "tags" => {
+                *tags = parse_utils::parse_next(input, || {
+                    let tags;
+                    bracketed!(tags in input);
+                    Punctuated::parse_terminated(&tags)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn from_parts(
+        api: Option<TypePath>,
+        tags: Punctuated<parse_utils::LitStrOrExpr, Comma>,
+        span: proc_macro2::Span,
+        statement: &str,
+    ) -> syn::Result<Self> {
+        let api = api.ok_or_else(|| {
+            syn::Error::new(
+                span,
+                format!("`api = ...` argument is mandatory for {statement} statement"),
+            )
+        })?;
+
+        Ok(Self { api, tags })
+    }
+
+    fn module_path(&self) -> String {
+        self.api
+            .path
+            .segments
+            .iter()
+            .take(self.api.path.segments.len() - 1)
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join("::")
+    }
+
+    fn openapi_tokens(&self, config_suffix: &str, fallback_tag: TokenStream) -> TokenStream {
+        let api = &self.api;
+        let api_ident = &api
+            .path
+            .segments
+            .last()
+            .expect("openapi reference must have at least one segment")
+            .ident;
+        let config_ident = format_ident!("{}{}", api_ident, config_suffix);
+        let tags = self.tags.iter().collect::<Array<_>>();
+        let span = api.span();
+
+        quote_spanned! {span=>
+            {
+                #[allow(non_camel_case_types)]
+                struct #config_ident;
+                impl utoipa::__dev::NestedApiConfig for #config_ident {
+                    fn config() -> (utoipa::openapi::OpenApi, Vec<&'static str>, &'static str) {
+                        let api = <#api as utoipa::OpenApi>::openapi();
+
+                        (api, #tags.into(), #fallback_tag)
+                    }
+                }
+                <#config_ident as utoipa::OpenApi>::openapi()
+            }
+        }
+    }
+}
+
+impl Parse for OpenApiReference {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        const ERROR_MESSAGE: &str = "unexpected identifier, expected any of: path, api, tags";
-        let mut nest = NestOpenApi::default();
+        const ERROR_MESSAGE: &str = "unexpected identifier, expected any of: api, tags";
+        let mut api = None;
+        let mut tags = Punctuated::new();
 
         while !input.is_empty() {
             let ident = input.parse::<Ident>().map_err(|error| {
                 syn::Error::new(error.span(), format!("{ERROR_MESSAGE}: {error}"))
             })?;
 
-            match &*ident.to_string() {
-                "path" => nest.path = parse_utils::parse_next_literal_str_or_expr(input)?,
-                "api" => nest.open_api = Some(parse_utils::parse_next(input, || input.parse())?),
-                "tags" => {
-                    nest.tags = parse_utils::parse_next(input, || {
-                        let tags;
-                        bracketed!(tags in input);
-                        Punctuated::parse_terminated(&tags)
-                    })?;
-                }
-                _ => return Err(syn::Error::new(ident.span(), ERROR_MESSAGE)),
+            if !Self::parse_argument(&ident, input, &mut api, &mut tags)? {
+                return Err(syn::Error::new(ident.span(), ERROR_MESSAGE));
             }
 
             if !input.is_empty() {
                 input.parse::<Token![,]>()?;
             }
         }
-        if nest.path.is_empty_litstr() {
+
+        Self::from_parts(api, tags, input.span(), "merge(...)")
+    }
+}
+
+/// (path = "/nest/path", api = NestApi, tags = ["tag1", "tag2"])
+#[cfg_attr(feature = "debug", derive(Debug))]
+struct NestOpenApi {
+    reference: OpenApiReference,
+    path: parse_utils::LitStrOrExpr,
+}
+
+impl Parse for NestOpenApi {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        const ERROR_MESSAGE: &str = "unexpected identifier, expected any of: path, api, tags";
+        let mut path = None;
+        let mut api = None;
+        let mut tags = Punctuated::new();
+
+        while !input.is_empty() {
+            let ident = input.parse::<Ident>().map_err(|error| {
+                syn::Error::new(error.span(), format!("{ERROR_MESSAGE}: {error}"))
+            })?;
+
+            if &*ident.to_string() == "path" {
+                path = Some(parse_utils::parse_next_literal_str_or_expr(input)?);
+            } else if !OpenApiReference::parse_argument(&ident, input, &mut api, &mut tags)? {
+                return Err(syn::Error::new(ident.span(), ERROR_MESSAGE));
+            }
+
+            if !input.is_empty() {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        let path = path.ok_or_else(|| {
+            syn::Error::new(
+                input.span(),
+                "`path = ...` argument is mandatory for nest(...) statement",
+            )
+        })?;
+        if path.is_empty_litstr() {
             return Err(syn::Error::new(
                 input.span(),
                 "`path = ...` argument is mandatory for nest(...) statement",
             ));
         }
-        if nest.open_api.is_none() {
-            return Err(syn::Error::new(
-                input.span(),
-                "`api = ...` argument is mandatory for nest(...) statement",
-            ));
-        }
 
-        Ok(nest)
+        Ok(Self {
+            reference: OpenApiReference::from_parts(api, tags, input.span(), "nest(...)")?,
+            path,
+        })
     }
 }

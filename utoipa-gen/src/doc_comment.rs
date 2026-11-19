@@ -37,9 +37,7 @@ impl CommentAttributes {
         let min_indent = docs
             .iter()
             .filter(|s| !s.is_empty())
-            // Only recognize ASCII space, not unicode multi-bytes ones.
-            // `str::trim_ascii_start` requires 1.80 which is greater than our MSRV yet.
-            .map(|s| s.len() - s.trim_start_matches(' ').len())
+            .map(|s| s.len() - s.trim_ascii_start().len())
             .min()
             .unwrap_or(0);
         for line in &mut docs {

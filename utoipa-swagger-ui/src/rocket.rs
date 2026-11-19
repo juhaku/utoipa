@@ -82,10 +82,7 @@ impl Handler for ServeSwagger {
             let request_guard = request.guard::<BasicAuth>().await;
             match request_guard {
                 request::Outcome::Success(BasicAuth { username, password })
-                    if username == basic_auth.username && password == basic_auth.password =>
-                {
-                    ()
-                }
+                    if username == basic_auth.username && password == basic_auth.password => {}
                 _ => return Outcome::from(request, BasicAuthErrorResponse),
             }
         }
@@ -125,11 +122,16 @@ impl<'r, 'o: 'r> RocketResponder<'r, 'o> for BasicAuthErrorResponse {
 
 impl<'r, 'o: 'r> RocketResponder<'r, 'o> for SwaggerFile<'o> {
     fn respond_to(self, _: &'r Request<'_>) -> rocket::response::Result<'o> {
-        Ok(Response::build()
+        let mut response = Response::build();
+        let response = response
             .header(Header::new("Content-Type", self.content_type))
             .sized_body(self.bytes.len(), Cursor::new(self.bytes.to_vec()))
-            .status(Status::Ok)
-            .finalize())
+            .status(Status::Ok);
+
+        if self.gzpipped {
+            response.raw_header("Content-Encoding", "gzip");
+        }
+        Ok(response.finalize())
     }
 }
 
@@ -209,7 +211,7 @@ mod tests {
             .get("/swagger-ui")
             .header(Header::new(
                 "Authorization",
-                format!("Basic {}", encoded_credentials),
+                format!("Basic {encoded_credentials}"),
             ))
             .dispatch();
         assert_eq!(response.status(), Status::Ok);

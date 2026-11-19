@@ -4,18 +4,14 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parse_quote, punctuated::Punctuated, spanned::Spanned, token::Comma, Attribute, Data, Field,
-    Fields, FieldsNamed, FieldsUnnamed, Generics, Variant,
+    Fields, FieldsNamed, FieldsUnnamed, Generics, LitBool, Variant,
 };
 
 use crate::{
-    as_tokens_or_diagnostics,
-    component::features::{
-        attributes::{Rename, Title, ValueType},
-        validation::Pattern,
-    },
+    component::features::attributes::{Rename, Title, ValueType},
     doc_comment::CommentAttributes,
-    parse_utils::LitBoolOrExprPath,
-    Array, AttributesExt, Diagnostics, OptionExt, ToTokensDiagnostics,
+    token_stream::{as_tokens_or_diagnostics, quote_diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt, Diagnostics, OptionExt,
 };
 
 use self::{
@@ -325,14 +321,39 @@ struct NamedStructFieldOptions<'a> {
     renamed_field: Option<Cow<'a, str>>,
     required: Option<super::features::attributes::Required>,
     is_option: bool,
-    ignore: Option<LitBoolOrExprPath>,
+    ignore: Option<LitBool>,
 }
 
 impl NamedStructSchema {
     pub fn new(
         root: &Root,
         fields: &Punctuated<Field, Comma>,
+        features: Vec<Feature>,
+    ) -> Result<Self, Diagnostics> {
+        let container_rules = serde::parse_container(root.attributes)?;
+        Self::with_container_rules(root, fields, features, container_rules)
+    }
+
+    /// Schema of a named field enum variant.
+    ///
+    /// Serde applies the enum's `deny_unknown_fields` to every struct variant, so the
+    /// variant schema denies additional properties as well.
+    pub fn new_enum_variant(
+        root: &Root,
+        fields: &Punctuated<Field, Comma>,
+        features: Vec<Feature>,
+        enum_container: &SerdeContainer,
+    ) -> Result<Self, Diagnostics> {
+        let mut container_rules = serde::parse_container(root.attributes)?;
+        container_rules.deny_unknown_fields |= enum_container.deny_unknown_fields;
+        Self::with_container_rules(root, fields, features, container_rules)
+    }
+
+    fn with_container_rules(
+        root: &Root,
+        fields: &Punctuated<Field, Comma>,
         mut features: Vec<Feature>,
+        container_rules: SerdeContainer,
     ) -> Result<Self, Diagnostics> {
         let mut tokens = TokenStream::new();
 
@@ -341,8 +362,6 @@ impl NamedStructSchema {
         let description: Option<Description> =
             pop_feature!(features => Feature::Description(_)).into_inner();
         let bound = pop_feature!(features => Feature::Bound(_) as Option<Bound>);
-
-        let container_rules = serde::parse_container(root.attributes)?;
 
         let mut fields_vec = fields
             .iter()
@@ -368,7 +387,15 @@ impl NamedStructSchema {
 
                 match field_options {
                     Ok(Some(field_options)) => {
-                        Some(Ok((field_options, field_rules, field_name, field)))
+                        let should_always_ignore = match &field_options.ignore {
+                            Some(bool) => bool.value(),
+                            _ => false,
+                        };
+                        if should_always_ignore {
+                            None
+                        } else {
+                            Some(Ok((field_options, field_rules, field_name, field)))
+                        }
                     }
                     Ok(_) => None,
                     Err(options_diagnostics) => Some(Err(options_diagnostics)),
@@ -381,6 +408,9 @@ impl NamedStructSchema {
             .filter_map(|(field_options, field_rules, ..)| {
                 match (&mut field_options.property, field_rules.skip) {
                     (Property::Schema(schema), false) => {
+                        Some(std::mem::take(&mut schema.schema_references))
+                    }
+                    (Property::FlattenedMap(schema), false) => {
                         Some(std::mem::take(&mut schema.schema_references))
                     }
                     _ => None,
@@ -437,8 +467,8 @@ impl NamedStructSchema {
                     let mut property_tokens = quote! {
                         object = object.property(#name, #field_schema)
                     };
-                    let component_required =
-                        !is_option && super::is_required(field_rules, &container_rules);
+                    let component_required = (!is_option || field_rules.deserialize_with)
+                        && super::is_required(field_rules, &container_rules);
                     let required = match (required, component_required) {
                         (Some(required), _) => required.is_true(),
                         (None, component_required) => component_required,
@@ -451,13 +481,8 @@ impl NamedStructSchema {
                     }
 
                     object_tokens.extend(match ignore {
-                        Some(LitBoolOrExprPath::LitBool(bool)) => quote_spanned! {
+                        Some(bool) => quote_spanned! {
                             bool.span() => if !#bool {
-                                #property_tokens;
-                            }
-                        },
-                        Some(LitBoolOrExprPath::ExprPath(path)) => quote_spanned! {
-                            path.span() => if !#path() {
                                 #property_tokens;
                             }
                         },
@@ -483,17 +508,16 @@ impl NamedStructSchema {
 
             for (options, _, _, field) in flatten_fields {
                 let NamedStructFieldOptions { property, .. } = options;
-                let property_schema = as_tokens_or_diagnostics!(property);
 
                 match property {
                     Property::Schema(_) | Property::SchemaWith(_) => {
-                        flattened_tokens.extend(quote! { .item(#property_schema) })
+                        flattened_tokens.extend(quote_diagnostics! { .item(@property) }?)
                     }
                     Property::FlattenedMap(_) => {
                         match flattened_map_field {
                             None => {
                                 object_tokens.extend(
-                                    quote! { .additional_properties(Some(#property_schema)) },
+                                    quote_diagnostics! { .additional_properties(Some(@property)) }?,
                                 );
                                 flattened_map_field = Some(field);
                             }
@@ -744,20 +768,31 @@ impl UnnamedStructSchema {
                     ));
                 }
             }
-            let pattern = if let Some(pattern) =
-                pop_feature!(features => Feature::Pattern(_) as Option<Pattern>)
-            {
-                // Pattern Attribute is only allowed for unnamed structs with single field
-                if fields_len > 1 {
+
+            if fields_len > 1 {
+                // The struct has multiple unnamed fields.
+                // Validation related features are only allowed on unnamed structs with a single field (i.e., newtype pattern).
+                if let Some((name, span)) = features.iter().find_map(|feature| match feature {
+                    Feature::MultipleOf(attr) => Some(("multiple_of", attr.span())),
+                    Feature::Maximum(attr) => Some(("maximum", attr.span())),
+                    Feature::Minimum(attr) => Some(("minimum", attr.span())),
+                    Feature::ExclusiveMaximum(attr) => Some(("exclusive_maximum", attr.span())),
+                    Feature::ExclusiveMinimum(attr) => Some(("exclusive_minimum", attr.span())),
+                    Feature::MinLength(attr) => Some(("min_length", attr.span())),
+                    Feature::MaxLength(attr) => Some(("max_length", attr.span())),
+                    Feature::Pattern(attr) => Some(("pattern", attr.span())),
+                    Feature::MaxItems(attr) => Some(("max_items", attr.span())),
+                    Feature::MinItems(attr) => Some(("min_items", attr.span())),
+                    _ => None,
+                }) {
                     return Err(Diagnostics::with_span(
-                        pattern.span(),
-                        "Pattern attribute is not allowed for unnamed structs with multiple fields",
+                        span,
+                        format!(
+                            "{name} attribute is not allowed for unnamed structs with multiple fields",
+                        ),
                     ));
                 }
-                Some(pattern.to_token_stream())
-            } else {
-                None
-            };
+            }
 
             let comments = CommentAttributes::from_attributes(root.attributes);
             let description = description
@@ -780,11 +815,7 @@ impl UnnamedStructSchema {
             })?;
 
             tokens.extend(schema.to_token_stream());
-            if let Some(pattern) = pattern {
-                tokens.extend(quote! {
-                    .pattern(Some(#pattern))
-                });
-            }
+
             schema_references = std::mem::take(&mut schema.schema_references);
         } else {
             // Struct that has multiple unnamed fields is serialized to array by default with serde.

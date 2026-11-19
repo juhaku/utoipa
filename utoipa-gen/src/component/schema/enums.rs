@@ -21,7 +21,8 @@ use crate::{
     },
     doc_comment::CommentAttributes,
     schema_type::SchemaType,
-    Array, AttributesExt, Diagnostics, ToTokensDiagnostics,
+    token_stream::{Diagnostics, ToTokensDiagnostics},
+    Array, AttributesExt,
 };
 
 use super::{features, serde, NamedStructSchema, Root, UnnamedStructSchema};
@@ -512,7 +513,12 @@ impl MixedEnumContent {
             SerdeEnumRepr::ExternallyTagged => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
                 let schema_tokens = schema.to_token_stream();
 
                 (
@@ -525,7 +531,12 @@ impl MixedEnumContent {
             SerdeEnumRepr::InternallyTagged { tag } => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
 
                 let mut schema_tokens = schema.to_token_stream();
                 (
@@ -551,13 +562,23 @@ impl MixedEnumContent {
                 )
             }
             SerdeEnumRepr::Untagged => {
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
                 (schema.to_token_stream(), schema.fields_references)
             }
             SerdeEnumRepr::AdjacentlyTagged { tag, content } => {
                 let (enum_features, variant_features) =
                     MixedEnumContent::split_enum_features(variant_features);
-                let schema = NamedStructSchema::new(root, fields, variant_features)?;
+                let schema = NamedStructSchema::new_enum_variant(
+                    root,
+                    fields,
+                    variant_features,
+                    serde_container,
+                )?;
 
                 let schema_tokens = schema.to_token_stream();
                 (
@@ -978,11 +999,10 @@ impl PlainSchema {
         let schema_type = schema_type.to_token_stream();
         let enum_type = enum_type.as_ref();
         let items = Array::Borrowed(items);
-        let len = items.len();
 
         let plain_enum = quote! {
                 .schema_type(#schema_type)
-                .enum_values::<[#enum_type; #len], #enum_type>(Some(#items))
+                .enum_values::<Vec<#enum_type>, #enum_type>(Some(#items))
         };
 
         Self(plain_enum.to_token_stream())

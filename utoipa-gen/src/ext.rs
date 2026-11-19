@@ -9,7 +9,7 @@ use syn::{punctuated::Punctuated, token::Comma, ItemFn};
 use crate::component::{ComponentSchema, ComponentSchemaProps, Container, TypeTree};
 use crate::path::media_type::MediaTypePathExt;
 use crate::path::{HttpMethod, PathTypeTree};
-use crate::{Diagnostics, ToTokensDiagnostics};
+use crate::token_stream::{Diagnostics, ToTokensDiagnostics};
 
 #[cfg(feature = "auto_into_responses")]
 pub mod auto_types;
@@ -124,6 +124,13 @@ impl ExtSchema<'_> {
                 Cow::Borrowed(actual_body)
             }
         }).expect("ExtSchema must have actual request body resolved from TypeTree of handler fn argument")
+    }
+
+    /// Check whether a request body type such as `Json<T>`, `Form<T>` or `Bytes` can be resolved
+    /// from the handler fn argument. Rocket selects the argument by the `data = "<...>"` name, so
+    /// it can also be a data guard without one, e.g. `Data<'_>` or `TempFile<'_>`.
+    pub fn has_actual_body(&self) -> bool {
+        get_actual_body_type(&self.0).is_some()
     }
 
     pub fn get_type_tree(&self) -> Result<Option<Cow<'_, TypeTree<'_>>>, Diagnostics> {
@@ -288,7 +295,7 @@ pub trait ArgumentResolver {
         _: &'_ Punctuated<syn::FnArg, Comma>,
         _: Option<Vec<MacroArg>>,
         _: String,
-    ) -> Result<Arguments, Diagnostics> {
+    ) -> Result<Arguments<'_>, Diagnostics> {
         Ok((None, None, None))
     }
 }

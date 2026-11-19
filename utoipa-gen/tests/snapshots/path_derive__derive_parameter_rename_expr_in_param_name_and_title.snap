@@ -1,0 +1,22 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+---
+[
+  {
+    "in": "query",
+    "name": "filter_value",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "another_name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]

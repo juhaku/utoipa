@@ -1,0 +1,33 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: operation
+---
+[
+  {
+    "in": "query",
+    "name": "animal",
+    "required": true,
+    "schema": {
+      "enum": [
+        "Sparrow",
+        "Pigeon",
+        "Crow",
+        "Coot"
+      ],
+      "type": "string"
+    }
+  },
+  {
+    "in": "query",
+    "name": "animal",
+    "required": true,
+    "schema": {
+      "enum": [
+        "Stag",
+        "Longhorn",
+        "Weevil"
+      ],
+      "type": "string"
+    }
+  }
+]

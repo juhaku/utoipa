@@ -1,7 +1,7 @@
 [package]
 name = "utoipa-scalar"
 description = "Scalar for utoipa"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -15,18 +15,23 @@ rust-version.workspace = true
 features = ["actix-web", "axum", "rocket"]
 rustdoc-args = ["--cfg", "doc_cfg"]
 
+[features]
+# Pull capped `time` with rocket so cookie 0.18.1 cannot resolve time 0.3.52+.
+rocket = ["dep:rocket", "dep:time"]
+
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-utoipa = { version = "5.0.0", path = "../utoipa", default-features = false, features = [
+utoipa = { version = "6.0.0", path = "../utoipa", default-features = false, features = [
     "macros",
 ] }
 actix-web = { version = "4", optional = true, default-features = false }
 rocket = { version = "0.5", features = ["json"], optional = true }
-axum = { version = "0.8.0", default-features = false, optional = true }
+time = { workspace = true, optional = true }
+axum = { version = "0.8.4", default-features = false, optional = true }
 
 [dev-dependencies]
 utoipa-scalar = { path = ".", features = ["actix-web", "axum", "rocket"] }
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+[lints]
+workspace = true

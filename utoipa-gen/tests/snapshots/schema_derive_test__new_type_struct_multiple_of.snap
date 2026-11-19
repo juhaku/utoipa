@@ -1,0 +1,9 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "format": "int32",
+  "multipleOf": 5,
+  "type": "integer"
+}

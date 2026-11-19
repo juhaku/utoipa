@@ -29,10 +29,10 @@ snapshot_kind: text
         "items": {
           "oneOf": [
             {
-              "type": "null"
+              "$ref": "#/components/schemas/Account"
             },
             {
-              "$ref": "#/components/schemas/Account"
+              "type": "null"
             }
           ]
         },
