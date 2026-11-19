@@ -117,7 +117,7 @@ impl SchemaType<'_> {
                 );
             }
 
-            #[cfg(any(feature = "jiff_0_2", feature = "jiff_1"))]
+            #[cfg(any(feature = "jiff_0_2", feature = "jiff"))]
             if !primitive {
                 primitive = matches!(name, "Date" | "Timestamp");
             }
@@ -127,7 +127,7 @@ impl SchemaType<'_> {
                 primitive = name == "Zoned";
             }
 
-            #[cfg(feature = "jiff_1")]
+            #[cfg(feature = "jiff")]
             if !primitive {
                 primitive = name == "ZonedDateTime";
             }
@@ -269,7 +269,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
                 feature = "chrono",
                 feature = "time",
                 feature = "jiff_0_2",
-                feature = "jiff_1"
+                feature = "jiff"
             ))]
             "Date" | "Duration" => {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
@@ -303,13 +303,13 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             "PrimitiveDateTime" | "OffsetDateTime" => {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
-            #[cfg(any(feature = "jiff_0_2", feature = "jiff_1"))]
+            #[cfg(any(feature = "jiff_0_2", feature = "jiff"))]
             "Timestamp" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
             #[cfg(feature = "jiff_0_2")]
             "Zoned" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
 
-            #[cfg(feature = "jiff_1")]
+            #[cfg(feature = "jiff")]
             "ZonedDateTime" => schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable),
             _ => schema_type_tokens(tokens, SchemaTypeInner::Object, self.nullable),
         };
@@ -419,7 +419,7 @@ impl KnownFormat {
                 feature = "chrono",
                 feature = "time",
                 feature = "jiff_0_2",
-                feature = "jiff_1"
+                feature = "jiff"
             ))]
             "Date" => Self::Date,
 
@@ -441,13 +441,13 @@ impl KnownFormat {
             #[cfg(feature = "time")]
             "PrimitiveDateTime" | "OffsetDateTime" => Self::DateTime,
 
-            #[cfg(any(feature = "jiff_0_2", feature = "jiff_1"))]
+            #[cfg(any(feature = "jiff_0_2", feature = "jiff"))]
             "Timestamp" => Self::DateTime,
 
             #[cfg(feature = "jiff_0_2")]
             "Zoned" => Self::DateTime,
 
-            #[cfg(feature = "jiff_1")]
+            #[cfg(feature = "jiff")]
             "ZonedDateTime" => Self::DateTime,
             _ => Self::Unknown,
         };
@@ -731,7 +731,7 @@ impl PrimitiveType {
                 feature = "chrono",
                 feature = "time",
                 feature = "jiff_0_2",
-                feature = "jiff_1"
+                feature = "jiff"
             ))]
             "Date" => {
                 syn::parse_quote!(String)
@@ -787,7 +787,7 @@ impl PrimitiveType {
                 syn::parse_quote!(String)
             }
 
-            #[cfg(any(feature = "jiff_0_2", feature = "jiff_1"))]
+            #[cfg(any(feature = "jiff_0_2", feature = "jiff"))]
             "Timestamp" => {
                 syn::parse_quote!(String)
             }
@@ -797,7 +797,7 @@ impl PrimitiveType {
                 syn::parse_quote!(String)
             }
 
-            #[cfg(feature = "jiff_1")]
+            #[cfg(feature = "jiff")]
             "ZonedDateTime" => {
                 syn::parse_quote!(String)
             }
