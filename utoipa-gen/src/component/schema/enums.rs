@@ -498,8 +498,7 @@ impl MixedEnumContent {
                 .iter()
                 .any(|f| matches!(f, Feature::RenameAll(_)))
             {
-                variant_features
-                    .push(Feature::RenameAll(rename_all_fields.clone().into()));
+                variant_features.push(Feature::RenameAll(rename_all_fields.clone().into()));
             }
         }
 

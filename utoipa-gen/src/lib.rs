@@ -490,6 +490,8 @@ static CONFIG: std::sync::LazyLock<utoipa_config::Config> =
 /// be serialized anyway. Similarly the _`rename`_ and _`rename_all`_ will reflect to the generated OpenAPI doc.
 ///
 /// * `rename_all = "..."` Supported at the container level.
+/// * `rename_all_fields = "..."` Renames the fields of enum struct variants. A variant's
+///   `#[serde(rename_all = "...")]` takes precedence.
 /// * `rename = "..."` Supported **only** at the field or variant level.
 /// * `skip = "..."` Supported  **only** at the field or variant level.
 /// * `skip_serializing = "..."` Supported  **only** at the field or variant level.
