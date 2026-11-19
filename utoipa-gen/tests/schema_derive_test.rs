@@ -1779,9 +1779,23 @@ fn derive_component_with_time_feature() {
 fn derive_component_with_jiff_0_2_feature() {
     let doc = api_doc! {
         struct Timetest {
+            timestamp: jiff_0_2::Timestamp,
+            civil_date: jiff_0_2::civil::Date,
+            zoned: jiff_0_2::Zoned,
+        }
+    };
+
+    assert_json_snapshot!(&doc);
+}
+
+#[cfg(feature = "jiff")]
+#[test]
+fn derive_component_with_jiff_feature() {
+    let doc = api_doc! {
+        struct Timetest {
             timestamp: jiff::Timestamp,
             civil_date: jiff::civil::Date,
-            zoned: jiff::Zoned,
+            zoned: jiff::ZonedDateTime,
         }
     };
 
