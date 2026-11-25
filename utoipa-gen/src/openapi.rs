@@ -252,15 +252,15 @@ impl Parse for Response {
 #[cfg_attr(feature = "debug", derive(Debug))]
 struct Modifier {
     and: And,
-    ident: Ident,
+    path: syn::Path,
 }
 
 impl ToTokens for Modifier {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let and = &self.and;
-        let ident = &self.ident;
+        let path = &self.path;
         tokens.extend(quote! {
-            #and #ident
+            #and #path
         })
     }
 }
@@ -269,7 +269,7 @@ impl Parse for Modifier {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Self {
             and: input.parse()?,
-            ident: input.parse()?,
+            path: input.parse()?,
         })
     }
 }
