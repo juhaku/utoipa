@@ -14,7 +14,7 @@
 ### Fixed
 
 * Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
-* chore: Pin uuid < 1.27 for MSRV 1.88 compatibility (https://github.com/juhaku/utoipa/pull/1630)
+* Drop the `uuid` version upper bound so downstream users can pick newer `uuid` releases (https://github.com/juhaku/utoipa/issues/1655)
 * Deny additional properties on struct variants of `deny_unknown_fields` enums (https://github.com/juhaku/utoipa/pull/1631)
 
 ## 6.0.1 - Sep 23 2026
