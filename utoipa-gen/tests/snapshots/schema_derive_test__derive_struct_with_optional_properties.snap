@@ -1,13 +1,12 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: owner
-snapshot_kind: text
 ---
 {
   "properties": {
     "books": {
       "items": {
-        "$ref": "#/components/schemas/Book"
+        "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_optional_properties.Book"
       },
       "type": [
         "array",
@@ -40,7 +39,7 @@ snapshot_kind: text
     "optional_book": {
       "oneOf": [
         {
-          "$ref": "#/components/schemas/Book"
+          "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_optional_properties.Book"
         },
         {
           "type": "null"

@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/path_derive.rs
 expression: parameters
-snapshot_kind: text
 ---
 [
   {
@@ -20,7 +19,7 @@ snapshot_kind: text
     "name": "since",
     "required": false,
     "schema": {
-      "$ref": "#/components/schemas/Since"
+      "$ref": "#/components/schemas/path_derive.derive_path_with_parameter_schema.Since"
     }
   }
 ]

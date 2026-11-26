@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
-assertion_line: 137
 expression: doc
 ---
 {
@@ -128,7 +127,7 @@ expression: doc
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/path.to.PageList_Person_String_path.MyType_i32"
+                  "$ref": "#/components/schemas/path.to.PageList_schema_generics.generic_schema_full_api.Person_String_path.MyType_i32"
                 }
               }
             }
@@ -139,41 +138,6 @@ expression: doc
   },
   "components": {
     "schemas": {
-      "Person_String_path.MyType_i32": {
-        "type": "object",
-        "required": [
-          "id",
-          "field",
-          "t"
-        ],
-        "properties": {
-          "field": {
-            "type": "string"
-          },
-          "id": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "name": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "t": {
-            "type": "object",
-            "required": [
-              "t"
-            ],
-            "properties": {
-              "t": {
-                "type": "integer",
-                "format": "int32"
-              }
-            }
-          }
-        }
-      },
       "path.to.Element_String": {
         "oneOf": [
           {
@@ -203,7 +167,7 @@ expression: doc
           }
         ]
       },
-      "path.to.PageList_Person_String_path.MyType_i32": {
+      "path.to.PageList_schema_generics.generic_schema_full_api.Person_String_path.MyType_i32": {
         "type": "object",
         "required": [
           "total",
@@ -261,6 +225,41 @@ expression: doc
           "total": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "schema_generics.generic_schema_full_api.Person_String_path.MyType_i32": {
+        "type": "object",
+        "required": [
+          "id",
+          "field",
+          "t"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "t": {
+            "type": "object",
+            "required": [
+              "t"
+            ],
+            "properties": {
+              "t": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
           }
         }
       }

@@ -1,18 +1,17 @@
 ---
 source: utoipa-gen/tests/request_body_derive_test.rs
 expression: request_body
-snapshot_kind: text
 ---
 {
   "content": {
     "application/json": {
       "schema": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/request_body_derive_test.derive_request_body_complex_multi_content_type_success.Foo"
       }
     },
     "text/xml": {
       "schema": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/request_body_derive_test.derive_request_body_complex_multi_content_type_success.Foo"
       }
     }
   },

@@ -37,7 +37,7 @@
 //!  async fn get_user() -> Json<User> {
 //!     Json(User { id: 1 })
 //!  }
-//!  
+//!
 //!  let (router, api): (axum::Router, OpenApi) = OpenApiRouter::new()
 //!      .routes(routes!(get_user))
 //!      .split_for_parts();
@@ -372,14 +372,20 @@ mod tests {
                         ResponseBuilder::new().content(
                             "application/json",
                             Content::builder()
-                                .schema(Some(Ref::from_schema_name("Todo")))
+                                .schema(Some(Ref::from_schema_name(
+                                    "utoipa_axum.tests.openapi_with_auto_collected_schemas.Todo",
+                                )))
                                 .build(),
                         ),
                     ),
             ),
         );
-        let expected_schemas =
-            BTreeMap::from_iter(std::iter::once(("Todo".to_string(), Todo::schema())));
+
+        let expected_schemas = BTreeMap::from_iter(std::iter::once((
+            "utoipa_axum.tests.openapi_with_auto_collected_schemas.Todo".to_string(),
+            Todo::schema(),
+        )));
+
         assert_eq!(expected_paths.build(), paths);
         assert_eq!(expected_schemas, schemas);
     }

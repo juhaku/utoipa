@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: doc
-snapshot_kind: text
 ---
 {
   "properties": {
@@ -27,7 +26,7 @@ snapshot_kind: text
     },
     "field4": {
       "additionalProperties": {
-        "$ref": "#/components/schemas/MyStruct"
+        "$ref": "#/components/schemas/schema_derive_test.derive_struct_field_with_example.MyStruct"
       },
       "example": {
         "key1": "value1"

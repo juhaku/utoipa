@@ -109,11 +109,13 @@ fn derive_flattened_map_ref_property_collects_recursive_schema() {
     #![allow(unused)]
 
     #[derive(ToSchema)]
+    #[schema(as = Bar)]
     struct Bar {
         value: i64,
     }
 
     #[derive(ToSchema)]
+    #[schema(as = Foo)]
     struct Foo {
         #[serde(flatten)]
         data: HashMap<String, Bar>,
@@ -751,8 +753,8 @@ fn derive_with_box_and_refcell() {
 
     common::assert_json_array_len(greeting.get("required").unwrap(), 2);
     assert_value! {greeting=>
-        "properties.foo.$ref" = r###""#/components/schemas/Foo""###, "Greeting foo field"
-        "properties.ref_cell_foo.$ref" = r###""#/components/schemas/Foo""###, "Greeting ref_cell_foo field"
+        "properties.foo.$ref" = r###""#/components/schemas/schema_derive_test.derive_with_box_and_refcell.Foo""###, "Greeting foo field"
+        "properties.ref_cell_foo.$ref" = r###""#/components/schemas/schema_derive_test.derive_with_box_and_refcell.Foo""###, "Greeting ref_cell_foo field"
         "required.0" = r###""foo""###, "Greeting required 0"
         "required.1" = r###""ref_cell_foo""###, "Greeting required 1"
     };
@@ -1567,7 +1569,7 @@ fn derive_struct_with_read_only_nullable_ref() {
     };
 
     assert_value! {user=>
-        "properties.address.oneOf.[0].$ref" = r###""#/components/schemas/Inner""###, "User address $ref"
+        "properties.address.oneOf.[0].$ref" = r###""#/components/schemas/schema_derive_test.derive_struct_with_read_only_nullable_ref.Inner""###, "User address $ref"
         "properties.address.oneOf.[1].type" = r###""null""###, "User address nullable"
         "properties.address.readOnly" = r###"true"###, "User address read only"
     }
@@ -1827,7 +1829,7 @@ fn derive_struct_component_field_type_path_override_returns_default_name() {
         .unwrap()
         .as_str()
         .unwrap();
-    assert_eq!(component_ref, "#/components/schemas/Foo");
+    assert_eq!(component_ref, "#/components/schemas/schema_derive_test.derive_struct_component_field_type_path_override_returns_default_name.path.to.Foo");
 }
 
 #[test]
@@ -2259,7 +2261,7 @@ fn derive_parse_serde_mixed_enum() {
         "oneOf.[1].properties.namedFields.properties.nameList.items.type" = r#""string""#, "Named fields nameList items type"
         "oneOf.[1].properties.namedFields.required" = r#"["id"]"#, "Named fields required"
 
-        "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/Foo""###, "Unnamed fields ref"
+        "oneOf.[2].properties.unnamedFields.$ref" = r###""#/components/schemas/schema_derive_test.derive_parse_serde_mixed_enum.Foo""###, "Unnamed fields ref"
     }
 }
 

@@ -1,8 +1,7 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
-  "$ref": "#/components/schemas/Item"
+  "$ref": "#/components/schemas/schema_derive_test.derive_unnamed_struct_with_self_reference.Item"
 }

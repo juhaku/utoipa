@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "oneOf": [
@@ -37,7 +36,7 @@ snapshot_kind: text
       "example": "EX: Unnamed",
       "properties": {
         "UnnamedFields": {
-          "$ref": "#/components/schemas/Foo"
+          "$ref": "#/components/schemas/schema_derive_test.derive_mixed_enum_example.Foo"
         }
       },
       "required": [

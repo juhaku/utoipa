@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/schema_generics.rs
-assertion_line: 259
 expression: api
 ---
 {
@@ -12,7 +11,7 @@ expression: api
   "paths": {},
   "components": {
     "schemas": {
-      "Account": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Account": {
         "type": "object",
         "required": [
           "name"
@@ -23,7 +22,7 @@ expression: api
           }
         }
       },
-      "FooStruct_BTreeMap_String_Person_Value": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_BTreeMap_String_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Value": {
         "type": "object",
         "required": [
           "foo"
@@ -40,7 +39,7 @@ expression: api
               ],
               "properties": {
                 "account": {
-                  "$ref": "#/components/schemas/Account"
+                  "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Account"
                 },
                 "name": {
                   "type": "string"
@@ -56,7 +55,7 @@ expression: api
           }
         }
       },
-      "FooStruct_BTreeMap_Ty_Ky_Person_Value": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_BTreeMap_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Ty_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Ky_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Value": {
         "type": "object",
         "required": [
           "foo"
@@ -73,7 +72,7 @@ expression: api
               ],
               "properties": {
                 "account": {
-                  "$ref": "#/components/schemas/Account"
+                  "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Account"
                 },
                 "name": {
                   "type": "string"
@@ -101,7 +100,7 @@ expression: api
           }
         }
       },
-      "FooStruct_HashMap_i32_Person_i64": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_HashMap_i32_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_i64": {
         "type": "object",
         "required": [
           "foo"
@@ -118,7 +117,7 @@ expression: api
               ],
               "properties": {
                 "account": {
-                  "$ref": "#/components/schemas/Account"
+                  "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Account"
                 },
                 "name": {
                   "type": "string"
@@ -136,7 +135,7 @@ expression: api
           }
         }
       },
-      "FooStruct_HashSet_i32": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_HashSet_i32": {
         "type": "object",
         "required": [
           "foo"
@@ -152,7 +151,7 @@ expression: api
           }
         }
       },
-      "FoosEnum": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FoosEnum": {
         "oneOf": [
           {
             "type": "object",
@@ -163,7 +162,7 @@ expression: api
               "LinkedList": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/Person_Value"
+                  "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Value"
                 }
               }
             }
@@ -175,7 +174,7 @@ expression: api
             ],
             "properties": {
               "BTreeMap": {
-                "$ref": "#/components/schemas/FooStruct_BTreeMap_String_Person_Value"
+                "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_BTreeMap_String_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Value"
               }
             }
           },
@@ -186,7 +185,7 @@ expression: api
             ],
             "properties": {
               "HashMap": {
-                "$ref": "#/components/schemas/FooStruct_HashMap_i32_Person_i64"
+                "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_HashMap_i32_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_i64"
               }
             }
           },
@@ -197,7 +196,7 @@ expression: api
             ],
             "properties": {
               "HashSet": {
-                "$ref": "#/components/schemas/FooStruct_HashSet_i32"
+                "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_HashSet_i32"
               }
             }
           },
@@ -208,13 +207,13 @@ expression: api
             ],
             "properties": {
               "Btre": {
-                "$ref": "#/components/schemas/FooStruct_BTreeMap_Ty_Ky_Person_Value"
+                "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.FooStruct_BTreeMap_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Ty_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Ky_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Value"
               }
             }
           }
         ]
       },
-      "Person_Value": {
+      "schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Person_schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Value": {
         "type": "object",
         "required": [
           "name",
@@ -223,7 +222,7 @@ expression: api
         ],
         "properties": {
           "account": {
-            "$ref": "#/components/schemas/Account"
+            "$ref": "#/components/schemas/schema_generics.derive_generic_schema_collect_recursive_schema_not_inlined.Account"
           },
           "name": {
             "type": "string"

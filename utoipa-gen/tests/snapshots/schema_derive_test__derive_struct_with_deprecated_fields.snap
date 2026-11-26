@@ -1,14 +1,13 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: account
-snapshot_kind: text
 ---
 {
   "properties": {
     "foobars": {
       "deprecated": true,
       "items": {
-        "$ref": "#/components/schemas/Foobar"
+        "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_deprecated_fields.Foobar"
       },
       "type": "array"
     },

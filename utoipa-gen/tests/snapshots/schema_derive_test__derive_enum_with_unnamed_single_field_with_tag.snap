@@ -1,14 +1,13 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "oneOf": [
     {
       "allOf": [
         {
-          "$ref": "#/components/schemas/ReferenceValue"
+          "$ref": "#/components/schemas/schema_derive_test.derive_enum_with_unnamed_single_field_with_tag.ReferenceValue"
         },
         {
           "properties": {

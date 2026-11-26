@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: doc
-snapshot_kind: text
 ---
 {
   "properties": {
@@ -47,7 +46,7 @@ snapshot_kind: text
     },
     "value6": {
       "items": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/schema_derive_test.derive_component_with_to_schema_value_type.Foo"
       },
       "type": "array"
     }

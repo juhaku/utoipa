@@ -1,10 +1,9 @@
 ---
 source: utoipa-gen/tests/path_derive.rs
 expression: "&schemas"
-snapshot_kind: text
 ---
 {
-  "Account": {
+  "path_derive.derive_path_test_collect_request_body.Account": {
     "properties": {
       "id": {
         "format": "int32",
@@ -16,10 +15,10 @@ snapshot_kind: text
     ],
     "type": "object"
   },
-  "Person": {
+  "path_derive.derive_path_test_collect_request_body.Person": {
     "properties": {
       "account": {
-        "$ref": "#/components/schemas/Account"
+        "$ref": "#/components/schemas/path_derive.derive_path_test_collect_request_body.Account"
       },
       "name": {
         "type": "string"

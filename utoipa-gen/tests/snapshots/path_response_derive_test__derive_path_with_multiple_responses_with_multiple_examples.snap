@@ -1,6 +1,5 @@
 ---
 source: utoipa-gen/tests/path_response_derive_test.rs
-assertion_line: 398
 expression: responses
 ---
 {
@@ -20,7 +19,7 @@ expression: responses
           }
         },
         "schema": {
-          "$ref": "#/components/schemas/User"
+          "$ref": "#/components/schemas/path_response_derive_test.derive_path_with_multiple_responses_with_multiple_examples.User"
         }
       },
       "application/vnd.user.v2+json": {
@@ -37,7 +36,7 @@ expression: responses
           }
         },
         "schema": {
-          "$ref": "#/components/schemas/User2"
+          "$ref": "#/components/schemas/path_response_derive_test.derive_path_with_multiple_responses_with_multiple_examples.User2"
         }
       }
     }

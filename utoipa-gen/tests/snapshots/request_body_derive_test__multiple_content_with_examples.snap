@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/request_body_derive_test.rs
 expression: request_body
-snapshot_kind: text
 ---
 {
   "content": {
@@ -17,13 +16,13 @@ snapshot_kind: text
         }
       },
       "schema": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/request_body_derive_test.multiple_content_with_examples.Foo"
       }
     },
     "text/xml": {
       "example": "Value",
       "schema": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/request_body_derive_test.multiple_content_with_examples.Foo"
       }
     }
   },

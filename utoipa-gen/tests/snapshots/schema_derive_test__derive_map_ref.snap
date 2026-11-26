@@ -1,13 +1,12 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: map
-snapshot_kind: text
 ---
 {
   "properties": {
     "map": {
       "additionalProperties": {
-        "$ref": "#/components/schemas/Foo"
+        "$ref": "#/components/schemas/schema_derive_test.derive_map_ref.Foo"
       },
       "propertyNames": {
         "type": "string"

@@ -1,10 +1,9 @@
 ---
 source: utoipa-gen/tests/openapi_derive.rs
 expression: schemas
-snapshot_kind: text
 ---
 {
-  "Element_String": {
+  "openapi_derive.openapi_schemas_resolve_generic_enum_schema.Element_String": {
     "oneOf": [
       {
         "properties": {

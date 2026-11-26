@@ -1,12 +1,11 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: value
-snapshot_kind: text
 ---
 {
   "allOf": [
     {
-      "$ref": "#/components/schemas/Metadata"
+      "$ref": "#/components/schemas/schema_derive_test.derive_serde_flatten.Metadata"
     },
     {
       "properties": {

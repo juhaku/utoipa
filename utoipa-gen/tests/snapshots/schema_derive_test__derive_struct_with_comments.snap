@@ -1,7 +1,6 @@
 ---
 source: utoipa-gen/tests/schema_derive_test.rs
 expression: account
-snapshot_kind: text
 ---
 {
   "description": "This is user account dto object\n\nDetailed documentation here.\nMore than the first line is added to the description as well.",
@@ -9,7 +8,7 @@ snapshot_kind: text
     "foobars": {
       "description": "Foobars",
       "items": {
-        "$ref": "#/components/schemas/Foobar"
+        "$ref": "#/components/schemas/schema_derive_test.derive_struct_with_comments.Foobar"
       },
       "type": "array"
     },
