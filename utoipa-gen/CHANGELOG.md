@@ -6,6 +6,7 @@
 
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 * Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
+* Add support for `std::net::IpAddr`, `Ipv4Addr` and `Ipv6Addr` (https://github.com/juhaku/utoipa/issues/1512)
 
 ### Changed
 

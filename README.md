@@ -128,6 +128,8 @@ and the `ipa` is _api_ reversed. Aaand... `ipa` is also an awesome type of beer 
 
 * Implicit partial support for `serde` attributes. See [docs](https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#partial-serde-attributes-support) for more details.
 * Support for [http](https://crates.io/crates/http) `StatusCode` in responses.
+* Support for `std::net` `IpAddr`, `Ipv4Addr` and `Ipv6Addr`. All three are presented as `String`, with format
+  `ipv4` for `Ipv4Addr` and `ipv6` for `Ipv6Addr`.
 
 ## Install
 

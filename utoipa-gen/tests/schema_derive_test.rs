@@ -2191,6 +2191,19 @@ fn derive_struct_with_url_type() {
 }
 
 #[test]
+fn derive_struct_with_ip_addr_types() {
+    let doc = api_doc! {
+        struct Host {
+            ip: std::net::IpAddr,
+            ipv4: std::net::Ipv4Addr,
+            ipv6: std::net::Ipv6Addr,
+        }
+    };
+
+    assert_json_snapshot!(&doc);
+}
+
+#[test]
 fn derive_parse_serde_field_attributes() {
     struct S;
     let post = api_doc! {

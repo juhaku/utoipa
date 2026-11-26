@@ -189,6 +189,9 @@ fn is_primitive(name: &str) -> bool {
             | "i128"
             | "f32"
             | "f64"
+            | "IpAddr"
+            | "Ipv4Addr"
+            | "Ipv6Addr"
     )
 }
 
@@ -238,7 +241,7 @@ impl ToTokensDiagnostics for SchemaType<'_> {
         }
 
         match name {
-            "String" | "str" | "char" => {
+            "String" | "str" | "char" | "IpAddr" | "Ipv4Addr" | "Ipv6Addr" => {
                 schema_type_tokens(tokens, SchemaTypeInner::String, self.nullable)
             }
 
@@ -389,6 +392,9 @@ impl KnownFormat {
             "i64" => Self::Int64,
             "f32" => Self::Float,
             "f64" => Self::Double,
+
+            "Ipv4Addr" => Self::Ipv4,
+            "Ipv6Addr" => Self::Ipv6,
 
             #[cfg(feature = "chrono")]
             "NaiveDate" => Self::Date,
@@ -684,7 +690,9 @@ impl PrimitiveType {
         let name = &*last_segment.ident.to_string();
 
         let ty: syn::Type = match name {
-            "String" | "str" | "char" => syn::parse_quote!(#path),
+            "String" | "str" | "char" | "IpAddr" | "Ipv4Addr" | "Ipv6Addr" => {
+                syn::parse_quote!(#path)
+            }
 
             "bool" => syn::parse_quote!(#path),
 

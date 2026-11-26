@@ -1,0 +1,64 @@
+---
+source: utoipa-gen/tests/schema_generics.rs
+expression: api
+---
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "title",
+    "version": "version"
+  },
+  "paths": {},
+  "components": {
+    "schemas": {
+      "HighIpv4": {
+        "$ref": "#/components/schemas/High_Option_Ipv4Addr"
+      },
+      "HighIpv6": {
+        "$ref": "#/components/schemas/High_Ipv6Addr"
+      },
+      "High_IpAddr": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "string"
+          }
+        }
+      },
+      "High_Ipv6Addr": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "type": "string",
+            "format": "ipv6"
+          }
+        }
+      },
+      "High_Option_Ipv4Addr": {
+        "type": "object",
+        "required": [
+          "high"
+        ],
+        "properties": {
+          "high": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "format": "ipv4"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

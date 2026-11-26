@@ -128,6 +128,8 @@
 //!
 //! * Implicit partial support for `serde` attributes. See [`ToSchema` derive][serde] for more details.
 //! * Support for [http](https://crates.io/crates/http) `StatusCode` in responses.
+//! * Support for `std::net` `IpAddr`, `Ipv4Addr` and `Ipv6Addr`. All three are presented as `String`, with format
+//!   `ipv4` for `Ipv4Addr` and `ipv6` for `Ipv6Addr`.
 //!
 //! # Install
 //!
@@ -252,6 +254,7 @@ pub mod gen;
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::option::Option;
 
 #[cfg(feature = "macros")]
@@ -511,7 +514,8 @@ macro_rules! impl_to_schema {
 
 #[rustfmt::skip]
 impl_to_schema!(
-    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+    i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+    IpAddr, Ipv4Addr, Ipv6Addr
 );
 
 impl ToSchema for &str {
@@ -1268,6 +1272,8 @@ impl_from_for_number!(
 #[cfg(feature = "macros")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "macros")))]
 pub mod __dev {
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
     use utoipa_gen::schema;
 
     use crate::{utoipa, OpenApi, PartialSchema};
@@ -1356,7 +1362,8 @@ pub mod __dev {
 
     #[rustfmt::skip]
     impl_compose_schema!(
-        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char
+        i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, bool, f32, f64, String, str, char,
+        IpAddr, Ipv4Addr, Ipv6Addr
     );
 
     fn schema_or_compose<T: ComposeSchema>(

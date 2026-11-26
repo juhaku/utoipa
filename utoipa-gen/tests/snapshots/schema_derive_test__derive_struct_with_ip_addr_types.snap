@@ -1,0 +1,25 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: "&doc"
+---
+{
+  "properties": {
+    "ip": {
+      "type": "string"
+    },
+    "ipv4": {
+      "format": "ipv4",
+      "type": "string"
+    },
+    "ipv6": {
+      "format": "ipv6",
+      "type": "string"
+    }
+  },
+  "required": [
+    "ip",
+    "ipv4",
+    "ipv6"
+  ],
+  "type": "object"
+}
