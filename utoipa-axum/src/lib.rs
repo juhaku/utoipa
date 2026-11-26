@@ -87,11 +87,15 @@ pub use pastey::paste;
 ///
 /// Only handlers collected with [`routes`] macro will get registered to the OpenApi.
 ///
+/// Group handlers by their annotated path. Each call builds one Axum
+/// [`MethodRouter`](axum::routing::MethodRouter) that [`OpenApiRouter::routes`](router::OpenApiRouter::routes)
+/// mounts at every path listed in the call. For different paths, call
+/// `routes!` separately so the methods served by Axum match the OpenAPI document.
+///
 /// # Panics
 ///
-/// Routes registered via [`routes`] macro or via `axum::routing::*` operations are bound to same
-/// rules where only one one HTTP method can can be registered once per call. This means that the
-/// following will produce runtime panic from axum code.
+/// Registering the same HTTP method twice in a single call will panic, even
+/// when the handlers have different annotated paths.
 ///
 /// ```rust,no_run
 /// # use utoipa_axum::{routes, router::UtoipaMethodRouter};
@@ -121,6 +125,22 @@ pub use pastey::paste;
 ///  async fn post_user() {}
 ///
 ///  let _: OpenApiRouter = OpenApiRouter::new().routes(routes!(get_user, post_user));
+/// ```
+///
+/// Register handlers for different paths in separate calls:
+///
+/// ```rust
+/// use utoipa_axum::{router::OpenApiRouter, routes};
+///
+/// #[utoipa::path(get, path = "/users")]
+/// async fn list_users() {}
+///
+/// #[utoipa::path(post, path = "/sessions")]
+/// async fn create_session() {}
+///
+/// let _: OpenApiRouter = OpenApiRouter::new()
+///     .routes(routes!(list_users))
+///     .routes(routes!(create_session));
 /// ```
 #[macro_export]
 macro_rules! routes {
@@ -425,6 +445,47 @@ mod tests {
                 ),
             );
         assert_eq!(expected_paths.build(), paths);
+    }
+
+    #[tokio::test]
+    async fn separate_route_calls_keep_methods_on_their_annotated_paths() {
+        use axum::body::Body;
+        use http::{Method, Request, StatusCode};
+
+        #[utoipa::path(get, path = "/users")]
+        async fn list_users() {}
+
+        #[utoipa::path(post, path = "/sessions")]
+        async fn create_session() {}
+
+        let (router, openapi) = OpenApiRouter::new()
+            .routes(routes!(list_users))
+            .routes(routes!(create_session))
+            .split_for_parts();
+
+        let users = &openapi.paths.paths["/users"];
+        assert!(users.get.is_some());
+        assert!(users.post.is_none());
+        let sessions = &openapi.paths.paths["/sessions"];
+        assert!(sessions.get.is_none());
+        assert!(sessions.post.is_some());
+
+        for (method, path, expected) in [
+            (Method::GET, "/users", StatusCode::OK),
+            (Method::POST, "/sessions", StatusCode::OK),
+            (Method::POST, "/users", StatusCode::METHOD_NOT_ALLOWED),
+            (Method::GET, "/sessions", StatusCode::METHOD_NOT_ALLOWED),
+        ] {
+            let request = Request::builder()
+                .method(method)
+                .uri(path)
+                .body(Body::empty())
+                .unwrap();
+            assert_eq!(
+                router.clone().oneshot(request).await.unwrap().status(),
+                expected
+            );
+        }
     }
 
     #[tokio::test]
