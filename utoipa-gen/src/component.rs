@@ -1230,7 +1230,10 @@ impl ComponentSchema {
 
                         object_schema_reference.is_inline = true;
                         let items_tokens = if let Some(children) = &type_tree.children {
-                            schema_references.extend(Self::compose_child_references(children)?);
+                            schema_references.extend(Self::compose_child_references(
+                                children,
+                                container.generics,
+                            )?);
 
                             let composed_generics =
                                 Self::compose_generics(children, container.generics)?
@@ -1452,7 +1455,7 @@ impl ComponentSchema {
 
                     Ok(quote! { std::borrow::Cow::Owned(format!("{}_{}", <#rewritten_name as utoipa::ToSchema>::name(), #children_name)) })
                 } else {
-                    Ok(quote! { <#rewritten_name as utoipa::ToSchema>::name() })
+                    Ok(quote! { <#rewritten_name as utoipa::ToSchema>::composed_name() })
                 }
             })
             .collect::<Result<Array<_>, Diagnostics>>()?;
@@ -1512,11 +1515,49 @@ impl ComponentSchema {
 
     fn compose_child_references<'a, I: IntoIterator<Item = &'a TypeTree<'a>> + 'a>(
         children: I,
+        generics: &'a Generics,
     ) -> Result<impl Iterator<Item = SchemaReference> + 'a, Diagnostics> {
         let iter = children.into_iter().map(|type_tree| {
             if let Some(children) = &type_tree.children {
-                let iter = Self::compose_child_references(children)?;
-                Ok(ChildRefIter::Iter(Box::new(iter)))
+                let mut refs = Vec::new();
+                if type_tree.value_type == ValueType::Object && type_tree.generic_type.is_none() {
+                    let rewritten_path = type_tree
+                        .path
+                        .as_deref()
+                        .expect("Object TypePath must have type path, compose child references")
+                        .rewrite_path()?;
+                    let children_name = Self::compose_name(
+                        Self::filter_const_generics(children, generics),
+                        generics,
+                    )?;
+                    let name = quote! {
+                        format!(
+                            "{}_{}",
+                            <#rewritten_path as utoipa::ToSchema>::name(),
+                            #children_name
+                        )
+                    };
+                    let composed_generics = Self::compose_generics(
+                        Self::filter_const_generics(children, generics),
+                        generics,
+                    )?
+                    .collect::<Array<_>>();
+
+                    refs.push(SchemaReference {
+                        name,
+                        tokens: quote! {
+                            <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(
+                                #composed_generics
+                            )
+                        },
+                        references: quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) },
+                        is_inline: false,
+                        no_recursion: false,
+                    });
+                }
+
+                refs.extend(Self::compose_child_references(children, generics)?);
+                Ok(ChildRefIter::Iter(Box::new(refs.into_iter())))
             } else if type_tree.value_type == ValueType::Object {
                 let type_path = type_tree
                     .path

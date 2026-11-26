@@ -1,10 +1,59 @@
 ---
 source: utoipa-gen/tests/openapi_derive.rs
 expression: schemas
-snapshot_kind: text
 ---
 {
   "schemas": {
+    "dto.get.unit.Response": {
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "latitude": {
+          "format": "double",
+          "type": "number"
+        },
+        "longitude": {
+          "format": "double",
+          "type": "number"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "latitude",
+        "longitude",
+        "title",
+        "country",
+        "city",
+        "address"
+      ],
+      "type": "object"
+    },
     "dto.page.Response_dto.get.unit.Response": {
       "properties": {
         "list": {
