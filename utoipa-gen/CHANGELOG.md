@@ -6,6 +6,7 @@
 
 * Add support for expression for `title` and `names` (https://github.com/juhaku/utoipa/pull/1524)
 * Add support for merging `OpenApi` derives with `merge(...)` (https://github.com/juhaku/utoipa/pull/1304)
+* Add support for Serde's `rename_all_fields` attribute on enums (https://github.com/juhaku/utoipa/pull/1533)
 
 ### Changed
 
