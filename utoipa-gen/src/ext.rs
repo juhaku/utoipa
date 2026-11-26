@@ -73,15 +73,8 @@ impl<'v> From<(MacroArg, TypeTree<'v>)> for ValueArgument<'v> {
 pub struct IntoParamsType<'a> {
     pub parameter_in_provider: TokenStream,
     pub type_path: Option<Cow<'a, syn::Path>>,
-}
-
-impl<'i> From<(Option<Cow<'i, syn::Path>>, TokenStream)> for IntoParamsType<'i> {
-    fn from((type_path, parameter_in_provider): (Option<Cow<'i, syn::Path>>, TokenStream)) -> Self {
-        IntoParamsType {
-            parameter_in_provider,
-            type_path,
-        }
-    }
+    /// Qualified self of the type, e.g. `<Foo as Bar>` in `<Foo as Bar>::Params`.
+    pub qself: Option<syn::QSelf>,
 }
 
 #[cfg(any(
@@ -114,6 +107,7 @@ impl ExtSchema<'_> {
             if let Some(option_type) = find_option_type_tree(actual_body) {
                 let path = option_type.path.clone();
                 Cow::Owned(TypeTree {
+                    qualified: None,
                     children: Some(vec![actual_body.clone()]),
                     generic_type: Some(crate::component::GenericType::Option),
                     value_type: crate::component::ValueType::Object,
@@ -484,12 +478,7 @@ pub mod fn_arg {
     }
 
     #[cfg(any(feature = "actix_extras", feature = "axum_extras"))]
-    pub(super) fn with_parameter_in(
-        arg: FnArg<'_>,
-    ) -> Option<(
-        Option<std::borrow::Cow<'_, syn::Path>>,
-        proc_macro2::TokenStream,
-    )> {
+    pub(super) fn with_parameter_in(arg: FnArg<'_>) -> Option<super::IntoParamsType<'_>> {
         let parameter_in_provider = if arg.ty.is("Path") {
             quote! { || Some (utoipa::openapi::path::ParameterIn::Path) }
         } else if arg.ty.is("Query") {
@@ -498,16 +487,20 @@ pub mod fn_arg {
             quote! { || None }
         };
 
-        let type_path = arg
+        let child = arg
             .ty
             .children
             .expect("FnArg TypeTree generic type Path must have children")
             .into_iter()
             .next()
-            .unwrap()
-            .path;
+            .unwrap();
+        let qself = child.qualified.and_then(|ty| ty.qself.clone());
 
-        Some((type_path, parameter_in_provider))
+        Some(super::IntoParamsType {
+            parameter_in_provider,
+            type_path: child.path,
+            qself,
+        })
     }
 
     // if type is either Path or Query with direct children as Object types without generics

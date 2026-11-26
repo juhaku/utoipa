@@ -1,13 +1,13 @@
 use std::{borrow::Cow, str::FromStr};
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::Ident;
 use quote::quote;
 use regex::{Captures, Regex};
 use syn::{parse::Parse, LitStr, Token};
 
 use crate::{
     component::{GenericType, ValueType},
-    ext::{ArgValue, ArgumentIn, MacroArg, ValueArgument},
+    ext::{ArgValue, ArgumentIn, IntoParamsType, MacroArg, ValueArgument},
     path::HttpMethod,
     Diagnostics, OptionExt,
 };
@@ -55,7 +55,6 @@ impl ArgumentResolver for PathOperations {
                         into_params_args
                             .into_iter()
                             .flat_map(with_parameter_in(&named_args))
-                            .map(Into::into)
                             .collect(),
                     ),
                     body,
@@ -86,9 +85,7 @@ fn to_anonymous_value_arg<'a>(macro_arg: MacroArg) -> ValueArgument<'a> {
     }
 }
 
-fn with_parameter_in(
-    named_args: &[MacroArg],
-) -> impl Fn(FnArg) -> Option<(Option<Cow<'_, syn::Path>>, TokenStream)> + '_ {
+fn with_parameter_in(named_args: &[MacroArg]) -> impl Fn(FnArg) -> Option<IntoParamsType<'_>> + '_ {
     move |arg: FnArg| {
         let parameter_in = named_args.iter().find_map(|macro_arg| match macro_arg {
             MacroArg::Path(path) => {
@@ -107,7 +104,12 @@ fn with_parameter_in(
             }
         });
 
-        Some(arg.ty.path).zip(parameter_in)
+        let qself = arg.ty.qualified.and_then(|ty| ty.qself.clone());
+        parameter_in.map(|parameter_in_provider| IntoParamsType {
+            parameter_in_provider,
+            type_path: arg.ty.path,
+            qself,
+        })
     }
 }
 

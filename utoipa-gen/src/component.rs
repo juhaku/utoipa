@@ -91,6 +91,11 @@ impl PartialEq for TypeTreeValue<'_> {
 #[derive(Clone)]
 pub struct TypeTree<'t> {
     pub path: Option<Cow<'t, Path>>,
+    /// Original type path when the type has a qualified self, e.g. `<Foo as Bar>::Baz`. `path`
+    /// then holds only `Bar::Baz`, which does not name a type on its own. Such a type is opaque:
+    /// it is never decomposed into generics, aliases, primitives or virtual types, and it is
+    /// emitted verbatim wherever the Rust type is needed.
+    pub qualified: Option<&'t TypePath>,
     #[allow(unused)]
     pub span: Option<Span>,
     pub value_type: ValueType,
@@ -124,6 +129,11 @@ impl SynPathExt for &Path {
                             let alias_type_tree =
                                 alias_type.as_ref().map(TypeTree::from_type).transpose()?;
                             let type_tree = alias_type_tree.unwrap_or(type_tree);
+
+                            if let Some(qualified) = type_tree.qualified {
+                                args.push(GenericArgument::Type(Type::Path(qualified.clone())));
+                                return Result::<_, Diagnostics>::Ok(args);
+                            }
 
                             let path = type_tree
                                 .path
@@ -269,12 +279,23 @@ impl TypeTree<'_> {
             .into_iter()
             .map(|value| {
                 let path = match value {
+                    TypeTreeValue::TypePath(type_path) if type_path.qself.is_some() => {
+                        return Ok(TypeTree {
+                            path: Some(Cow::Borrowed(&type_path.path)),
+                            qualified: Some(type_path),
+                            span: Some(type_path.span()),
+                            value_type: ValueType::Object,
+                            generic_type: None,
+                            children: None,
+                        });
+                    }
                     TypeTreeValue::TypePath(type_path) => &type_path.path,
                     TypeTreeValue::Path(path) => path,
                     TypeTreeValue::Array(value, span) => {
                         let array: Path = Ident::new("Array", span).into();
                         return Ok(TypeTree {
                             path: Some(Cow::Owned(array)),
+                            qualified: None,
                             span: Some(span),
                             value_type: ValueType::Object,
                             generic_type: Some(GenericType::Vec),
@@ -287,6 +308,7 @@ impl TypeTree<'_> {
                     TypeTreeValue::Tuple(tuple, span) => {
                         return Ok(TypeTree {
                             path: None,
+                            qualified: None,
                             span: Some(span),
                             children: Some(match Self::convert_types(tuple) {
                                 Ok(converted_values) => converted_values.collect(),
@@ -299,6 +321,7 @@ impl TypeTree<'_> {
                     TypeTreeValue::UnitType => {
                         return Ok(TypeTree {
                             path: None,
+                            qualified: None,
                             span: None,
                             value_type: ValueType::Tuple,
                             generic_type: None,
@@ -396,6 +419,7 @@ impl TypeTree<'_> {
 
         TypeTree {
             path: Some(Cow::Borrowed(path)),
+            qualified: None,
             span: Some(path.span()),
             value_type: if schema_type.is_primitive() {
                 ValueType::Primitive
@@ -442,6 +466,7 @@ impl TypeTree<'_> {
         let mut is = self
             .path
             .as_ref()
+            .filter(|_| self.qualified.is_none())
             .map(|path| {
                 path.segments
                     .last()
@@ -483,6 +508,9 @@ impl TypeTree<'_> {
     /// Get [`syn::Generics`] for current [`TypeTree`]'s [`syn::Path`].
     pub fn get_path_generics(&self) -> syn::Result<Generics> {
         let mut generics = Generics::default();
+        if self.qualified.is_some() {
+            return Ok(generics);
+        }
         let segment = self
             .path
             .as_ref()
@@ -536,12 +564,29 @@ impl TypeTree<'_> {
         Ok(generics)
     }
 
+    /// Get the Rust type of current [`TypeTree`] as tokens for generated trait calls.
+    ///
+    /// A qualified type (`<Foo as Bar>::Baz`) is returned verbatim. Any other type is the
+    /// [`SynPathExt::rewrite_path`] of its path.
+    pub fn rewritten_type(&self) -> Result<TokenStream, Diagnostics> {
+        if let Some(qualified) = self.qualified {
+            return Ok(qualified.to_token_stream());
+        }
+
+        let path = self
+            .path
+            .as_deref()
+            .expect("TypeTree of a rust type must have a path");
+        Ok(path.rewrite_path()?.to_token_stream())
+    }
+
     /// Get possible global alias defined in `utoipa_config::Config` for current `TypeTree`.
     pub fn get_alias_type(&self) -> Result<Option<syn::Type>, Diagnostics> {
         #[cfg(feature = "config")]
         {
             self.path
                 .as_ref()
+                .filter(|_| self.qualified.is_none())
                 .and_then(|path| path.segments.iter().last())
                 .and_then(|last_segment| {
                     crate::CONFIG.aliases.get(&*last_segment.ident.to_string())
@@ -559,6 +604,7 @@ impl PartialEq for TypeTree<'_> {
     #[cfg(feature = "debug")]
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path
+            && self.qualified == other.qualified
             && self.value_type == other.value_type
             && self.generic_type == other.generic_type
             && self.children == other.children
@@ -579,7 +625,11 @@ impl PartialEq for TypeTree<'_> {
             _ => false,
         };
 
+        let qualified_eq = self.qualified.map(|ty| ty.to_token_stream().to_string())
+            == other.qualified.map(|ty| ty.to_token_stream().to_string());
+
         path_eg
+            && qualified_eq
             && self.value_type == other.value_type
             && self.generic_type == other.generic_type
             && self.children == other.children
@@ -1189,6 +1239,7 @@ impl ComponentSchema {
                     }
                     let type_path = &**type_tree.path.as_ref().unwrap();
                     let rewritten_path = type_path.rewrite_path()?;
+                    let rewritten_type = type_tree.rewritten_type()?;
                     let nullable_item = nullable_one_of_item(nullable);
                     let mut object_schema_reference = SchemaReference {
                         no_recursion: features
@@ -1202,10 +1253,10 @@ impl ComponentSchema {
                             Self::filter_const_generics(children, container.generics),
                             container.generics,
                         )?;
-                        name_tokens.extend(quote! { std::borrow::Cow::Owned(format!("{}_{}", < #rewritten_path as utoipa::ToSchema >::name(), #children_name)) });
+                        name_tokens.extend(quote! { std::borrow::Cow::Owned(format!("{}_{}", < #rewritten_type as utoipa::ToSchema >::name(), #children_name)) });
                     } else {
                         name_tokens.extend(
-                            quote! { format!("{}", < #rewritten_path as utoipa::ToSchema >::name()) },
+                            quote! { format!("{}", < #rewritten_type as utoipa::ToSchema >::name()) },
                         );
                     }
 
@@ -1238,27 +1289,27 @@ impl ComponentSchema {
 
                             if index.is_some() {
                                 quote_spanned! {type_path.span()=>
-                                    let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+                                    let _ = <#rewritten_type as utoipa::PartialSchema>::schema;
 
                                     if let Some(composed) = generics.get_mut(#index) {
                                         composed.clone()
                                     } else {
-                                        <#rewritten_path as utoipa::PartialSchema>::schema()
+                                        <#rewritten_type as utoipa::PartialSchema>::schema()
                                     }
                                 }
                             } else {
                                 quote_spanned! {type_path.span()=>
-                                    <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
+                                    <#rewritten_type as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec())
                                 }
                             }
                         } else {
                             quote_spanned! {type_path.span()=>
-                                <#rewritten_path as utoipa::PartialSchema>::schema()
+                                <#rewritten_type as utoipa::PartialSchema>::schema()
                             }
                         };
                         object_schema_reference.tokens = items_tokens.clone();
                         object_schema_reference.references =
-                            quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
+                            quote! { <#rewritten_type as utoipa::ToSchema>::schemas(schemas) };
 
                         let description_tokens = description_stream.to_token_stream();
                         let schema = if nullable {
@@ -1313,21 +1364,21 @@ impl ComponentSchema {
                                     container.generics,
                                 )?
                                 .collect::<Array<_>>();
-                                quote! { <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec()) }
+                                quote! { <#rewritten_type as utoipa::__dev::ComposeSchema>::compose(#composed_generics.to_vec()) }
                             } else {
-                                quote! { <#rewritten_path as utoipa::PartialSchema>::schema() }
+                                quote! { <#rewritten_type as utoipa::PartialSchema>::schema() }
                             };
                             object_schema_reference.tokens = reference_tokens;
                         }
                         // any case the references call should be passed down in generic and non
                         // non generic likewise.
                         object_schema_reference.references =
-                            quote! { <#rewritten_path as utoipa::ToSchema>::schemas(schemas) };
+                            quote! { <#rewritten_type as utoipa::ToSchema>::schemas(schemas) };
                         let composed_or_ref = |item_tokens: TokenStream| -> TokenStream {
                             if let Some(index) = &index {
                                 quote_spanned! {type_path.span()=>
                                     {
-                                        let _ = <#rewritten_path as utoipa::PartialSchema>::schema;
+                                        let _ = <#rewritten_type as utoipa::PartialSchema>::schema;
 
                                         if let Some(composed) = generics.get_mut(#index) {
                                             composed.clone()
@@ -1441,11 +1492,7 @@ impl ComponentSchema {
         let children = children
             .into_iter()
             .map(|type_tree| {
-                let name = type_tree
-                    .path
-                    .as_deref()
-                    .expect("Generic ValueType::Object must have path");
-                let rewritten_name = name.rewrite_path()?;
+                let rewritten_name = type_tree.rewritten_type()?;
 
                 if let Some(children) = &type_tree.children {
                     let children_name = Self::compose_name(Self::filter_const_generics(children, generics), generics)?;
@@ -1468,11 +1515,7 @@ impl ComponentSchema {
         <I as std::iter::IntoIterator>::IntoIter: 'v,
     {
         let iter = children.into_iter().map(|child| {
-            let path = child
-                .path
-                .as_deref()
-                .expect("inline TypeTree ValueType::Object must have child path if generic");
-            let rewritten_path = path.rewrite_path()?;
+            let rewritten_path = child.rewritten_type()?;
             if let Some(children) = &child.children {
                 let items = Self::compose_generics(Self::filter_const_generics(children, generics), generics)?.collect::<Array<_>>();
                 Ok(quote! { <#rewritten_path as utoipa::__dev::ComposeSchema>::compose(#items.to_vec()) })
@@ -1518,12 +1561,7 @@ impl ComponentSchema {
                 let iter = Self::compose_child_references(children)?;
                 Ok(ChildRefIter::Iter(Box::new(iter)))
             } else if type_tree.value_type == ValueType::Object {
-                let type_path = type_tree
-                    .path
-                    .as_deref()
-                    .expect("Object TypePath must have type path, compose child references");
-
-                let rewritten_path = type_path.rewrite_path()?;
+                let rewritten_path = type_tree.rewritten_type()?;
 
                 Ok(ChildRefIter::Once(std::iter::once(SchemaReference {
                     name: quote! { String::from(< #rewritten_path as utoipa::ToSchema >::name().as_ref()) },

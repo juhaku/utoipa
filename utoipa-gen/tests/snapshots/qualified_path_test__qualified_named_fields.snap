@@ -1,0 +1,54 @@
+---
+source: utoipa-gen/tests/qualified_path_test.rs
+expression: value
+---
+{
+  "references": [
+    "Body",
+    "Body",
+    "Body"
+  ],
+  "schema": {
+    "properties": {
+      "by_ref": {
+        "$ref": "#/components/schemas/Body"
+      },
+      "inline": {
+        "description": "A body.",
+        "properties": {
+          "a": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a"
+        ],
+        "type": "object"
+      },
+      "list": {
+        "items": {
+          "$ref": "#/components/schemas/Body"
+        },
+        "type": "array"
+      },
+      "optional": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Body"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "by_ref",
+      "inline",
+      "list"
+    ],
+    "type": "object"
+  }
+}

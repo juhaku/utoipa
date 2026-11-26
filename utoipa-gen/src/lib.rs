@@ -3506,6 +3506,11 @@ trait GenericsExt {
 
 impl GenericsExt for &syn::Generics {
     fn get_generic_type_param_index(&self, type_tree: &TypeTree) -> Option<usize> {
+        // a qualified type such as `<T as Trait>::Assoc` is never a bare type parameter
+        if type_tree.qualified.is_some() {
+            return None;
+        }
+
         let ident = &type_tree
             .path
             .as_ref()

@@ -1,0 +1,21 @@
+---
+source: utoipa-gen/tests/qualified_path_test.rs
+expression: value
+---
+{
+  "references": [],
+  "schema": {
+    "description": "A body.",
+    "properties": {
+      "a": {
+        "format": "int32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "a"
+    ],
+    "type": "object"
+  }
+}

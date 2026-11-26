@@ -1,0 +1,16 @@
+---
+source: utoipa-gen/tests/qualified_path_test.rs
+expression: "<Responses as IntoResponses>::responses()"
+---
+{
+  "200": {
+    "description": "Ok.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/Body"
+        }
+      }
+    }
+  }
+}
