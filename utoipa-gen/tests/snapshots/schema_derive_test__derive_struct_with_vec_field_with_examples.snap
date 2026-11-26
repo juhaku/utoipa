@@ -1,0 +1,54 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "properties": {
+    "nullable_values": {
+      "examples": [
+        [
+          "foobar"
+        ]
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "optional_values": {
+      "examples": [
+        [
+          "foobar"
+        ]
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "values": {
+      "examples": [
+        [
+          "foobar",
+          "barfoo"
+        ],
+        []
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "values",
+    "nullable_values"
+  ],
+  "type": "object"
+}

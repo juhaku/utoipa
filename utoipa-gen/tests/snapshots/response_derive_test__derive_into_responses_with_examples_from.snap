@@ -1,0 +1,23 @@
+---
+source: utoipa-gen/tests/response_derive_test.rs
+expression: responses
+---
+{
+  "200": {
+    "description": "Success",
+    "content": {
+      "application/json": {
+        "schema": {
+          "$ref": "#/components/schemas/Person"
+        },
+        "examples": {
+          "Person1": {
+            "value": {
+              "name": "name1"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,57 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+expression: parameters
+---
+[
+  {
+    "examples": {
+      "one": {
+        "value": 1
+      },
+      "two": {
+        "value": 2
+      }
+    },
+    "in": "path",
+    "name": "id",
+    "required": true,
+    "schema": {
+      "format": "int64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  {
+    "examples": {
+      "plain": {
+        "summary": "Plain value",
+        "value": "value"
+      }
+    },
+    "in": "path",
+    "name": "name",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "examples": {
+      "pair": {
+        "value": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    "in": "path",
+    "name": "vec",
+    "required": true,
+    "schema": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  }
+]

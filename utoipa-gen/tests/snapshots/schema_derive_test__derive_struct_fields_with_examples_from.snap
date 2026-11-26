@@ -1,0 +1,79 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "examples": [
+    {
+      "counts": {},
+      "labels": null,
+      "name": "post",
+      "published": "2026-01-01",
+      "tags": []
+    }
+  ],
+  "properties": {
+    "counts": {
+      "additionalProperties": {
+        "format": "int32",
+        "type": "integer"
+      },
+      "examples": [
+        {
+          "a": 1
+        }
+      ],
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "labels": {
+      "examples": [
+        [
+          "label"
+        ]
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "name": {
+      "examples": [
+        "first",
+        "second"
+      ],
+      "type": "string"
+    },
+    "published": {
+      "examples": [
+        "2026-01-01"
+      ],
+      "type": "string"
+    },
+    "tags": {
+      "examples": [
+        [
+          "a",
+          "b"
+        ],
+        []
+      ],
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "tags",
+    "counts",
+    "published"
+  ],
+  "type": "object"
+}

@@ -802,11 +802,9 @@ impl<'p> PathTypeTree for TypeTree<'p> {
 
 mod parse {
     use syn::parse::ParseStream;
-    use syn::punctuated::Punctuated;
-    use syn::token::Comma;
     use syn::Result;
 
-    use crate::path::example::Example;
+    use crate::path::example::Examples;
     use crate::{parse_utils, AnyValue};
 
     #[inline]
@@ -820,7 +818,7 @@ mod parse {
     }
 
     #[inline]
-    pub(super) fn examples(input: ParseStream) -> Result<Punctuated<Example, Comma>> {
-        parse_utils::parse_comma_separated_within_parenthesis(input)
+    pub(super) fn examples(input: ParseStream) -> Result<Examples> {
+        input.parse()
     }
 }

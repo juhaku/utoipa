@@ -22,7 +22,7 @@ use crate::{
 use self::{header::Header, link::LinkTuple};
 
 use super::{
-    example::Example,
+    example::Examples,
     media_type::{DefaultSchema, MediaTypeAttr, ParsedType},
     parse,
     status::STATUS_CODES,
@@ -508,7 +508,7 @@ struct DeriveToResponseValue {
     headers: Vec<Header>,
     description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
-    examples: Option<(Punctuated<Example, Comma>, Ident)>,
+    examples: Option<(Examples, Ident)>,
 }
 
 impl DeriveResponseValue for DeriveToResponseValue {
@@ -582,7 +582,7 @@ struct DeriveIntoResponsesValue {
     headers: Vec<Header>,
     description: parse_utils::LitStrOrExpr,
     example: Option<(AnyValue, Ident)>,
-    examples: Option<(Punctuated<Example, Comma>, Ident)>,
+    examples: Option<(Examples, Ident)>,
 }
 
 impl DeriveResponseValue for DeriveIntoResponsesValue {

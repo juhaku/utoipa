@@ -1,0 +1,26 @@
+---
+source: utoipa-gen/tests/request_body_derive_test.rs
+expression: request_body
+---
+{
+  "content": {
+    "application/json": {
+      "examples": {
+        "first": {
+          "value": {
+            "name": "first"
+          }
+        },
+        "second": {
+          "value": {
+            "name": "second"
+          }
+        }
+      },
+      "schema": {
+        "$ref": "#/components/schemas/Foo"
+      }
+    }
+  },
+  "required": true
+}

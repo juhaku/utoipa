@@ -1,0 +1,20 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: doc
+---
+{
+  "examples": [
+    {
+      "value": 0
+    }
+  ],
+  "properties": {
+    "value": {
+      "$ref": "#/components/schemas/i32"
+    }
+  },
+  "required": [
+    "value"
+  ],
+  "type": "object"
+}
