@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::defs::Defs;
 use super::extensions::Extensions;
 use super::RefOr;
 use super::{
@@ -127,6 +128,16 @@ builder! {
         /// Optional extensions "x-something".
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -538,10 +549,21 @@ impl ComponentsBuilder {
 ///
 /// [schemas]: https://spec.openapis.org/oas/latest.html#schema-object
 #[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Schema {
+    /// The value of this keyword MAY be of any type, including null.
+    /// Use of this keyword is functionally equivalent to an "enum" (Section 6.1.2) with a single value.
+    ///
+    /// An instance validates successfully against this keyword if its value is equal to the value of the keyword.
+    ///
+    /// Form more see:
+    /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+    /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    Const(Const),
+
     /// Defines array schema from another schema. Typically used with
     /// [`Schema::Object`]. Slice and Vec types are translated to [`Schema::Array`] types.
     Array(Array),
@@ -651,6 +673,93 @@ impl Discriminator {
 }
 
 builder! {
+    ConstBuilder;
+
+    /// The value of this keyword MAY be of any type, including null.
+    /// Use of this keyword is functionally equivalent to an "enum" (Section 6.1.2) with a single value.
+    ///
+    /// An instance validates successfully against this keyword if its value is equal to the value of the keyword.
+    ///
+    /// Form more see:
+    /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+    /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    #[non_exhaustive]
+    #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+    #[cfg_attr(feature = "debug", derive(Debug))]
+    pub struct Const {
+        #[serde(rename = "const")]
+        const_: Value,
+        #[serde(flatten, default)]
+        annotations: BTreeMap<String, String>,
+    }
+}
+
+impl Const {
+    /// Construct a new [`Const`] component.
+    pub fn new(value: Value) -> Self {
+        Self {
+            const_: value,
+            ..Default::default()
+        }
+    }
+
+    /// Construct a new [`Const`] with provided annotations. Annotations describe `const` value
+    pub fn with_annotations(value: Value, annotations: BTreeMap<String, String>) -> Self {
+        Self {
+            const_: value,
+            annotations,
+        }
+    }
+}
+
+impl ConstBuilder {
+    /// Set `const` keyword
+    ///
+    /// Read more:
+    /// * <https://json-schema.org/draft/2020-12/json-schema-validation#name-const>
+    /// * <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    pub fn const_<T: Into<Value>>(mut self, value: T) -> Self {
+        set_value!(self const_ value.into())
+    }
+
+    /// Extend fields describing `const` value
+    ///
+    /// Read more: <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    pub fn annotations<T: IntoIterator<Item = (String, String)>>(mut self, annotations: T) -> Self {
+        self.annotations.extend(annotations);
+        self
+    }
+
+    /// Add field describing `const` value
+    ///
+    /// Read more: <https://spec.openapis.org/oas/v3.2.0.html#annotated-enumerations>
+    pub fn annotation<K: Into<String>, V: Into<String>>(mut self, key: K, value: V) -> Self {
+        self.annotations.insert(key.into(), value.into());
+        self
+    }
+}
+
+impl From<Const> for Schema {
+    fn from(const_: Const) -> Self {
+        Self::Const(const_)
+    }
+}
+
+impl From<ConstBuilder> for RefOr<Schema> {
+    fn from(const_: ConstBuilder) -> Self {
+        Self::T(Schema::Const(const_.build()))
+    }
+}
+
+impl From<ConstBuilder> for ArrayItems {
+    fn from(value: ConstBuilder) -> Self {
+        Self::RefOrSchema(Box::new(value.into()))
+    }
+}
+
+component_from_builder!(ConstBuilder);
+
+builder! {
     OneOfBuilder;
 
     /// OneOf [Composite Object][oneof] component holds
@@ -711,6 +820,16 @@ builder! {
         /// Declares the schema as "write only".
         #[serde(rename = "writeOnly", skip_serializing_if = "Option::is_none")]
         pub write_only: Option<bool>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -756,6 +875,7 @@ impl Default for OneOf {
             extensions: Default::default(),
             read_only: Default::default(),
             write_only: Default::default(),
+            defs: Default::default(),
         }
     }
 }
@@ -822,6 +942,11 @@ impl OneOfBuilder {
     /// Add or change write only flag for [`OneOf`].
     pub fn write_only(mut self, write_only: bool) -> Self {
         set_value!(self write_only Some(write_only))
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -900,6 +1025,16 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -943,6 +1078,7 @@ impl Default for AllOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
+            defs: Default::default(),
         }
     }
 }
@@ -1001,6 +1137,11 @@ impl AllOfBuilder {
         set_value!(self extensions extensions)
     }
 
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
+    }
+
     to_array_builder!();
 }
 
@@ -1036,6 +1177,11 @@ builder! {
     #[derive(Serialize, Deserialize, Clone, PartialEq)]
     #[cfg_attr(feature = "debug", derive(Debug))]
     pub struct AnyOf {
+
+        /// Changes the [`AnyOf`] title.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub title: Option<String>,
+
         /// Components of _AnyOf component.
         #[serde(rename = "anyOf")]
         pub items: Vec<RefOr<Schema>>,
@@ -1073,6 +1219,16 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -1107,6 +1263,7 @@ impl AnyOf {
 impl Default for AnyOf {
     fn default() -> Self {
         Self {
+            title: Default::default(),
             items: Default::default(),
             schema_type: SchemaType::AnyValue,
             description: Default::default(),
@@ -1115,11 +1272,17 @@ impl Default for AnyOf {
             examples: Default::default(),
             discriminator: Default::default(),
             extensions: Default::default(),
+            defs: Default::default(),
         }
     }
 }
 
 impl AnyOfBuilder {
+    /// Add or change the title of the [`AnyOf`].
+    pub fn title<I: Into<String>>(mut self, title: Option<I>) -> Self {
+        set_value!(self title title.map(|title| title.into()))
+    }
+
     /// Adds a given [`Schema`] to [`AnyOf`] [Composite Object][composite].
     ///
     /// [composite]: https://spec.openapis.org/oas/latest.html#components-object
@@ -1166,6 +1329,11 @@ impl AnyOfBuilder {
     /// Add openapi extensions (`x-something`) for [`AnyOf`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -1356,6 +1524,15 @@ builder! {
         #[serde(skip_serializing_if = "String::is_empty", default)]
         pub content_media_type: String,
 
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(flatten)]
+        pub defs: Defs,
         /// The _`content_schema`_ keyword specifies the schema of string-encoded content.
         #[serde(skip_serializing_if = "Option::is_none")]
         pub content_schema: Option<Box<RefOr<Schema>>>,
@@ -1581,6 +1758,9 @@ impl ObjectBuilder {
         set_value!(self content_media_type content_media_type.into())
     }
 
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     /// Set or change [`Object::content_schema`].
     pub fn content_schema<I: Into<RefOr<Schema>>>(mut self, content_schema: Option<I>) -> Self {
         set_value!(self content_schema content_schema.map(|schema| Box::new(schema.into())))
@@ -2020,6 +2200,16 @@ builder! {
         /// Optional extensions `x-something`.
         #[serde(skip_serializing_if = "Option::is_none", flatten)]
         pub extensions: Option<Extensions>,
+
+        /// The "$defs" keyword reserves a location for schema authors to inline re-usable JSON
+        /// Schemas into a more general schema. The keyword does not directly affect the validation
+        /// result.
+        ///
+        ///  This keyword's value MUST be an object. Each member value of this object MUST be a valid JSON Schema.
+        ///
+        /// See more: <https://json-schema.org/draft/2020-12/json-schema-core#name-schema-re-use-with-defs>
+        #[serde(flatten)]
+        pub defs: Defs,
     }
 }
 
@@ -2042,6 +2232,7 @@ impl Default for Array {
             extensions: Default::default(),
             content_encoding: Default::default(),
             content_media_type: Default::default(),
+            defs: Default::default(),
             content_schema: Default::default(),
         }
     }
@@ -2191,6 +2382,11 @@ impl ArrayBuilder {
     /// Add openapi extensions (`x-something`) for [`Array`].
     pub fn extensions(mut self, extensions: Option<Extensions>) -> Self {
         set_value!(self extensions extensions)
+    }
+
+    /// Set definitons for the object [`Object::defs`].
+    pub fn defs(mut self, defs: Defs) -> Self {
+        set_value!(self defs defs)
     }
 
     to_array_builder!();
@@ -2844,6 +3040,53 @@ mod tests {
             serialized_components,
             serde_json::to_string(&deserialized_components).unwrap()
         )
+    }
+
+    #[test]
+    fn serialize_deserialize_const_keyword() {
+        let basic_json = r#"{
+            "const": { "my-complex-key": [1, 2], "x": null, "v": {} },
+            "annotation": "my-annotation",
+            "other": "other",
+            "type": "object"
+        }"#;
+
+        let basic_deserialized: RefOr<Schema> = serde_json::from_str(basic_json).unwrap();
+        assert!(matches!(basic_deserialized, RefOr::T(Schema::Const(_))));
+
+        let deserialized_unwrapped = if let RefOr::T(Schema::Const(const_)) = basic_deserialized {
+            const_
+        } else {
+            unreachable!();
+        };
+
+        assert!(matches!(deserialized_unwrapped.const_, Value::Object(_)));
+        assert_eq!(deserialized_unwrapped.annotations.len(), 3);
+
+        for const_value in [
+            Const {
+                const_: Value::String("Test".into()),
+                annotations: BTreeMap::from([("title".into(), "test".into())]),
+            },
+            Const {
+                const_: Value::String("Test".into()),
+                annotations: BTreeMap::from([("type".into(), "string".into())]),
+            },
+        ] {
+            let const_keyword = RefOr::T(Schema::Const(const_value));
+
+            let json_str = serde_json::to_string(&const_keyword).expect("");
+            println!("----------------------------");
+            println!("{json_str}");
+
+            let deserialized: RefOr<Schema> = serde_json::from_str(&json_str).expect("");
+
+            let json_de_str = serde_json::to_string(&deserialized).expect("");
+            println!("----------------------------");
+            println!("{json_de_str}");
+
+            assert_eq!(json_str, json_de_str);
+        }
     }
 
     #[test]

@@ -140,13 +140,47 @@ impl SchemaType<'_> {
                 | "u64"
                 | "u128"
                 | "usize"
+                | "NonZeroI8"
+                | "NonZeroI16"
+                | "NonZeroI32"
+                | "NonZeroI64"
+                | "NonZeroI128"
+                | "NonZeroIsize"
+                | "NonZeroU8"
+                | "NonZeroU16"
+                | "NonZeroU32"
+                | "NonZeroU64"
+                | "NonZeroU128"
+                | "NonZeroUsize"
+        )
+    }
+
+    pub fn is_nonzero_unsigned_integer(&self) -> bool {
+        matches!(
+            &*self.last_segment_to_string(),
+            "NonZeroU8"
+                | "NonZeroU16"
+                | "NonZeroU32"
+                | "NonZeroU64"
+                | "NonZeroU128"
+                | "NonZeroUsize"
         )
     }
 
     pub fn is_unsigned_integer(&self) -> bool {
         matches!(
             &*self.last_segment_to_string(),
-            "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+            "u8" | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "usize"
+                | "NonZeroU8"
+                | "NonZeroU16"
+                | "NonZeroU32"
+                | "NonZeroU64"
+                | "NonZeroU128"
+                | "NonZeroUsize"
         )
     }
 
@@ -189,6 +223,18 @@ fn is_primitive(name: &str) -> bool {
             | "i128"
             | "f32"
             | "f64"
+            | "NonZeroI8"
+            | "NonZeroI16"
+            | "NonZeroI32"
+            | "NonZeroI64"
+            | "NonZeroI128"
+            | "NonZeroIsize"
+            | "NonZeroU8"
+            | "NonZeroU16"
+            | "NonZeroU32"
+            | "NonZeroU64"
+            | "NonZeroU128"
+            | "NonZeroUsize"
     )
 }
 
@@ -245,7 +291,9 @@ impl ToTokensDiagnostics for SchemaType<'_> {
             "bool" => schema_type_tokens(tokens, SchemaTypeInner::Boolean, self.nullable),
 
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => {
+            | "u128" | "usize" | "NonZeroI8" | "NonZeroI16" | "NonZeroI32" | "NonZeroI64"
+            | "NonZeroI128" | "NonZeroIsize" | "NonZeroU8" | "NonZeroU16" | "NonZeroU32"
+            | "NonZeroU64" | "NonZeroU128" | "NonZeroUsize" => {
                 schema_type_tokens(tokens, SchemaTypeInner::Integer, self.nullable)
             }
             "f32" | "f64" => schema_type_tokens(tokens, SchemaTypeInner::Number, self.nullable),
@@ -367,26 +415,27 @@ impl KnownFormat {
 
         let variant = match name {
             #[cfg(feature = "non_strict_integers")]
-            "i8" => Self::Int8,
+            "i8" | "NonZeroI8" => Self::Int8,
             #[cfg(feature = "non_strict_integers")]
-            "u8" => Self::UInt8,
+            "u8" | "NonZeroU8" => Self::UInt8,
             #[cfg(feature = "non_strict_integers")]
-            "i16" => Self::Int16,
+            "i16" | "NonZeroI16" => Self::Int16,
             #[cfg(feature = "non_strict_integers")]
-            "u16" => Self::UInt16,
+            "u16" | "NonZeroU16" => Self::UInt16,
             #[cfg(feature = "non_strict_integers")]
-            "u32" => Self::UInt32,
+            "u32" | "NonZeroU32" => Self::UInt32,
             #[cfg(feature = "non_strict_integers")]
-            "u64" => Self::UInt64,
+            "u64" | "NonZeroU64" => Self::UInt64,
 
             #[cfg(not(feature = "non_strict_integers"))]
-            "i8" | "i16" | "u8" | "u16" | "u32" => Self::Int32,
+            "i8" | "i16" | "u8" | "u16" | "u32" | "NonZeroI8" | "NonZeroI16" | "NonZeroU8"
+            | "NonZeroU16" | "NonZeroU32" => Self::Int32,
 
             #[cfg(not(feature = "non_strict_integers"))]
-            "u64" => Self::Int64,
+            "u64" | "NonZeroU64" => Self::Int64,
 
-            "i32" => Self::Int32,
-            "i64" => Self::Int64,
+            "i32" | "NonZeroI32" => Self::Int32,
+            "i64" | "NonZeroI64" => Self::Int64,
             "f32" => Self::Float,
             "f64" => Self::Double,
 
@@ -689,7 +738,9 @@ impl PrimitiveType {
             "bool" => syn::parse_quote!(#path),
 
             "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => syn::parse_quote!(#path),
+            | "u128" | "usize" | "NonZeroI8" | "NonZeroI16" | "NonZeroI32" | "NonZeroI64"
+            | "NonZeroI128" | "NonZeroIsize" | "NonZeroU8" | "NonZeroU16" | "NonZeroU32"
+            | "NonZeroU64" | "NonZeroU128" | "NonZeroUsize" => syn::parse_quote!(#path),
             "f32" | "f64" => syn::parse_quote!(#path),
 
             #[cfg(feature = "chrono")]
