@@ -918,6 +918,7 @@ impl ComponentSchema {
         description_stream: Option<&ComponentDescription<'_>>,
     ) -> Result<(), Diagnostics> {
         let example = features.pop_by(|feature| matches!(feature, Feature::Example(_)));
+        let examples = pop_feature!(features => Feature::Examples(_));
         let additional_properties = pop_feature!(features => Feature::AdditionalProperties(_));
         let nullable: Option<Nullable> =
             pop_feature!(features => Feature::Nullable(_)).into_inner();
@@ -990,7 +991,8 @@ impl ComponentSchema {
                 @default
         }?);
 
-        example.to_tokens(tokens)
+        example.to_tokens(tokens)?;
+        examples.to_tokens(tokens)
     }
 
     fn vec_to_tokens(
@@ -1002,6 +1004,7 @@ impl ComponentSchema {
         description_stream: Option<&ComponentDescription<'_>>,
     ) -> Result<(), Diagnostics> {
         let example = pop_feature!(features => Feature::Example(_));
+        let examples = pop_feature!(features => Feature::Examples(_));
         let xml = features.extract_vec_xml_feature(type_tree)?;
         let max_items = pop_feature!(features => Feature::MaxItems(_));
         let min_items = pop_feature!(features => Feature::MinItems(_));
@@ -1095,6 +1098,7 @@ impl ComponentSchema {
         default.to_tokens(tokens)?;
         title.to_tokens(tokens)?;
         example.to_tokens(tokens)?;
+        examples.to_tokens(tokens)?;
         xml.to_tokens(tokens)?;
 
         Ok(())

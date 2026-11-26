@@ -16,6 +16,7 @@
 * Mark `Option` fields with `deserialize_with` or `with` and no `default` as required (https://github.com/juhaku/utoipa/pull/1627)
 * Drop the `uuid` version upper bound so downstream users can pick newer `uuid` releases (https://github.com/juhaku/utoipa/issues/1655)
 * Deny additional properties on struct variants of `deny_unknown_fields` enums (https://github.com/juhaku/utoipa/pull/1631)
+* Place `examples` of `Vec` and other list types on the array schema instead of its `items`, and `examples` of map types on the object schema instead of its `propertyNames` and `additionalProperties`. This changes the generated output for anyone relying on the old placement (https://github.com/juhaku/utoipa/pull/1638)
 
 ## 6.0.1 - Sep 23 2026
 
