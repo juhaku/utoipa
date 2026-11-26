@@ -2880,6 +2880,30 @@ fn derive_schema_with_implicit_value_type() {
 }
 
 #[test]
+fn derive_schema_with_object_type_example() {
+    let value = api_doc! {
+        struct Value {
+            #[schema(value_type = Object, example = json!({"foo": "bar"}))]
+            object: serde_json::Value,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
+fn derive_schema_with_value_type_example() {
+    let value = api_doc! {
+        struct Value {
+            #[schema(value_type = Value, example = json!({"foo": "bar"}))]
+            any: serde_json::Value,
+        }
+    };
+
+    assert_json_snapshot!(value);
+}
+
+#[test]
 fn derive_tuple_named_struct_field() {
     #[derive(ToSchema)]
     #[allow(unused)]
