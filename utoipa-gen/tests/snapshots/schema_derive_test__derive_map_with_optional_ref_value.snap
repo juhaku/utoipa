@@ -1,0 +1,45 @@
+---
+source: utoipa-gen/tests/schema_derive_test.rs
+expression: value
+---
+{
+  "properties": {
+    "inline_map": {
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "map": {
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/NewString"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "map",
+    "inline_map"
+  ],
+  "type": "object"
+}
