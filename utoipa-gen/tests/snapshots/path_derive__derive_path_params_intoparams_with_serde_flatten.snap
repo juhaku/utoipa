@@ -1,0 +1,48 @@
+---
+source: utoipa-gen/tests/path_derive.rs
+assertion_line: 849
+expression: parameters
+---
+[
+  {
+    "description": "Name keyword.",
+    "example": "",
+    "in": "query",
+    "name": "name",
+    "required": false,
+    "schema": {
+      "type": "string"
+    }
+  },
+  {
+    "description": "Page number.",
+    "in": "query",
+    "name": "page",
+    "required": false,
+    "schema": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  {
+    "description": "Page size.",
+    "in": "query",
+    "name": "size",
+    "required": false,
+    "schema": {
+      "format": "int32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  {
+    "description": "Whether account is active.",
+    "in": "query",
+    "name": "active",
+    "required": false,
+    "schema": {
+      "type": "boolean"
+    }
+  }
+]
