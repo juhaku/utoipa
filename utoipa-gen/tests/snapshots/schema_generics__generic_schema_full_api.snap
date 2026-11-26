@@ -58,6 +58,7 @@ expression: doc
         },
         "responses": {
           "200": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
@@ -125,6 +126,7 @@ expression: doc
             }
           },
           "400": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {

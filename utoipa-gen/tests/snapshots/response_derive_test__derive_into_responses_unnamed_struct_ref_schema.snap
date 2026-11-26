@@ -11,6 +11,7 @@ expression: responses
           "$ref": "#/components/schemas/Foo"
         }
       }
-    }
+    },
+    "description": ""
   }
 }

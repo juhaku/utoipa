@@ -123,7 +123,10 @@ builder! {
         pub summary: Option<String>,
 
         /// Description of the response. Response support markdown syntax.
-        #[serde(skip_serializing_if = "String::is_empty", default)]
+        ///
+        /// Always serialized, even when empty, because it is a required field of the
+        /// OpenAPI 3.1 Response Object.
+        #[serde(default)]
         pub description: String,
 
         /// Map of headers identified by their name. `Content-Type` header will be ignored.
@@ -314,6 +317,17 @@ mod tests {
             )
             .build();
         assert_json_snapshot!(request_body);
+    }
+
+    #[test]
+    fn response_without_description_serializes_empty_description() {
+        // `description` is a required field of the OpenAPI 3.1 Response Object.
+        let response = ResponseBuilder::new().build();
+
+        assert_eq!(
+            serde_json::to_value(&response).unwrap(),
+            serde_json::json!({ "description": "" })
+        );
     }
 }
 

@@ -6,7 +6,9 @@ expression: value
 {
   "operationId": "post_secret",
   "responses": {
-    "200": {}
+    "200": {
+      "description": ""
+    }
   },
   "summary": "Post some secret inner handler"
 }
